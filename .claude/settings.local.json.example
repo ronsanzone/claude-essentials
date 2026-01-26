@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find:*)",
+      "Bash(gofmt:*)",
+      "Bash(go build:*)",
+      "Bash(go test:*)",
+      "Bash(goimports:*)",
+      "Bash(go run:*)",
+      "Bash(grep:*)",
+      "Bash(mkdir:*)",
+      "Bash(git mv:*)",
+      "Bash(gh api:*)",
+      "mcp__gopls__go_workspace",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:docs.anthropic.com)",
+      "WebFetch(domain:your-domain.com)"
+    ],
+    "deny": []
+  },
+  "outputStyle": "Explanatory"
+}
