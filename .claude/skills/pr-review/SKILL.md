@@ -23,12 +23,16 @@ Launches 8 specialized Opus agents in parallel to review a PR from different ang
 ## Usage
 
 ```
+/pr-review <github-url> [--threshold N]
 /pr-review <owner/repo> <pr-number> [--threshold N]
 ```
 
 Examples:
+- `/pr-review https://github.com/anthropics/claude-code/pull/123`
 - `/pr-review anthropics/claude-code 123`
 - `/pr-review anthropics/claude-code 123 --threshold 60`
+
+**Local Mode:** When run from a local git repository that matches the PR's repo, the skill automatically uses local git operations instead of GitHub API calls. This is faster and reduces API rate limit concerns.
 
 ## Pipeline
 
@@ -37,7 +41,8 @@ digraph pr_review {
     rankdir=TB;
 
     "Parse args" [shape=box];
-    "Eligibility check (Haiku)" [shape=diamond];
+    "Detect mode" [shape=diamond];
+    "Setup worktree" [shape=box, style=dashed];
     "Find CLAUDE.md files (Haiku)" [shape=box];
     "Summarize PR (Haiku)" [shape=box];
     "8 Parallel Review Agents (Opus)" [shape=box, style=bold];
@@ -45,12 +50,13 @@ digraph pr_review {
     "Filter by threshold" [shape=diamond];
     "Assign severity tiers" [shape=box];
     "Generate Report" [shape=box, style=bold];
-    "Skip - not eligible" [shape=box];
+    "Cleanup worktree" [shape=box, style=dashed];
     "Report: No issues found" [shape=box];
 
-    "Parse args" -> "Eligibility check (Haiku)";
-    "Eligibility check (Haiku)" -> "Find CLAUDE.md files (Haiku)" [label="eligible"];
-    "Eligibility check (Haiku)" -> "Skip - not eligible" [label="draft/closed/automated"];
+    "Parse args" -> "Detect mode";
+    "Detect mode" -> "Setup worktree" [label="local mode"];
+    "Detect mode" -> "Find CLAUDE.md files (Haiku)" [label="API mode"];
+    "Setup worktree" -> "Find CLAUDE.md files (Haiku)";
     "Find CLAUDE.md files (Haiku)" -> "Summarize PR (Haiku)";
     "Summarize PR (Haiku)" -> "8 Parallel Review Agents (Opus)";
     "8 Parallel Review Agents (Opus)" -> "Confidence Scoring (Haiku per issue)";
@@ -58,6 +64,7 @@ digraph pr_review {
     "Filter by threshold" -> "Assign severity tiers" [label="issues >= threshold"];
     "Filter by threshold" -> "Report: No issues found" [label="no issues pass"];
     "Assign severity tiers" -> "Generate Report";
+    "Generate Report" -> "Cleanup worktree" [label="local mode"];
 }
 ```
 
@@ -65,31 +72,80 @@ digraph pr_review {
 
 Follow these steps precisely:
 
-### Step 1: Eligibility Check (Haiku)
+### Step 0: Mode Detection & Worktree Setup
 
-Launch a Haiku agent to check if the PR:
-- (a) is closed
-- (b) is a draft
-- (c) does not need review (automated PR, trivial change)
-- (d) already has a code review from you
+**0a. Parse Input:**
+Parse owner/repo/pr-number from input. Accept either:
+- GitHub URL: `https://github.com/owner/repo/pull/123`
+- Args: `owner/repo 123`
 
-If any condition is true, stop and report why.
-
+**0b. Detect Mode:**
 ```bash
-gh pr view -R <owner/repo> <pr-number> --json state,isDraft,author,title,body
+# Check if in a git repository
+git rev-parse --git-dir 2>/dev/null
+
+# If in repo, check both origin and upstream remotes
+ORIGIN_URL=$(git remote get-url origin 2>/dev/null)
+UPSTREAM_URL=$(git remote get-url upstream 2>/dev/null)
+
+# Parse owner/repo from each remote URL and compare to PR's owner/repo
 ```
 
-### Step 2: Find CLAUDE.md Files (Haiku)
+- If in a repo AND either `origin` or `upstream` matches PR's owner/repo → **LOCAL MODE**
+- Otherwise → **API MODE**
+
+This supports fork workflows where `origin` is your fork and `upstream` is the main repo where PRs are opened.
+
+Output to user:
+- Local mode: `"Detected local repository, using local mode for faster review"`
+- API mode: `"Using GitHub API mode"`
+
+**0c. Worktree Setup (Local Mode Only):**
+```bash
+# Create worktree directory
+WORKTREE_DIR=".pr-review-worktrees/pr-${PR_NUMBER}"
+git worktree add "$WORKTREE_DIR" --detach
+
+# Checkout PR in worktree
+cd "$WORKTREE_DIR"
+gh pr checkout $PR_NUMBER
+
+# Capture base branch for diff comparison
+# Use the remote that matches the PR's repo (origin or upstream)
+MATCHING_REMOTE="origin"  # or "upstream" if that matched
+BASE_BRANCH=$(gh pr view $PR_NUMBER --json baseRefName -q .baseRefName)
+BASE_SHA=$(git merge-base HEAD ${MATCHING_REMOTE}/${BASE_BRANCH})
+```
+
+If worktree setup fails, fall back to API mode with a warning.
+
+**Context for subsequent steps:**
+- Local mode: `worktree_path`, `base_sha`, `mode: "local"`
+- API mode: `owner`, `repo`, `pr_number`, `mode: "api"`
+
+### Step 1: Find CLAUDE.md Files (Haiku)
 
 Launch a Haiku agent to find all relevant CLAUDE.md files:
 - Root CLAUDE.md (if exists)
 - CLAUDE.md files in directories modified by the PR
 
+**Local mode:** Use `git diff $BASE_SHA...HEAD --name-only` to find modified directories, then search for CLAUDE.md files directly in the worktree.
+
+**API mode:** Use `gh pr diff -R <owner/repo> <pr-number>` to identify modified files.
+
 Return file paths only, not contents.
 
-### Step 3: Summarize PR (Haiku)
+### Step 2: Summarize PR (Haiku)
 
-Launch a Haiku agent to:
+Launch a Haiku agent to get PR metadata and diff:
+
+**Local mode:**
+```bash
+gh pr view <pr-number>  # Still need API for PR title/description
+git diff $BASE_SHA...HEAD  # Local diff
+```
+
+**API mode:**
 ```bash
 gh pr view -R <owner/repo> <pr-number>
 gh pr diff -R <owner/repo> <pr-number>
@@ -97,7 +153,7 @@ gh pr diff -R <owner/repo> <pr-number>
 
 Return a 2-3 sentence summary of what the PR does.
 
-### Step 4: Parallel Review Agents (8x Opus)
+### Step 3: Parallel Review Agents (8x Opus)
 
 Launch 8 Opus agents in parallel. Each returns a list of issues with:
 - Issue description
@@ -105,8 +161,17 @@ Launch 8 Opus agents in parallel. Each returns a list of issues with:
 - Reason flagged (CLAUDE.md, bug, history, security, etc.)
 - Suggested fix (concrete code example when possible)
 
+**Mode-specific operations for all agents:**
+
+| Operation | Local Mode | API Mode |
+|-----------|------------|----------|
+| Get diff | `git diff $BASE_SHA...HEAD` | `gh pr diff -R owner/repo N` |
+| Read files | Direct file read in worktree | `gh api` or file fetch |
+| Git blame | `git blame <file>` | `gh api` |
+| Git log | `git log --oneline <file>` | `gh api` |
+
 **Agent #1: CLAUDE.md Compliance**
-Audit changes against all CLAUDE.md files found in Step 2. Note that CLAUDE.md is guidance for writing code, so not all instructions apply during review.
+Audit changes against all CLAUDE.md files found in Step 1. Note that CLAUDE.md is guidance for writing code, so not all instructions apply during review.
 
 **Agent #2: Bug & Error Handling Scan**
 Read file changes and scan for:
@@ -130,8 +195,13 @@ Focus on the diff only, not surrounding context. Target significant issues, avoi
 **Agent #3: Git History Context**
 Read git blame and history of modified code. Identify bugs considering historical context and original intent.
 
+**Local mode:** Use `git blame <file>` and `git log --oneline -10 <file>` directly.
+**API mode:** Use `gh api` to fetch blame and history.
+
 **Agent #4: Previous PR Comments**
 Read previous PRs that touched these files. Check for comments that may apply to current changes.
+
+**Note:** This agent always uses GitHub API (both modes) since historical PR comments require API access.
 
 **Agent #5: Code Comment Compliance**
 Read code comments in modified files. Ensure changes comply with guidance in comments (TODOs, warnings, invariants).
@@ -174,12 +244,12 @@ Verify that the code changes actually solve the stated problem.
 - Refactoring PRs where "correctness" is subjective
 - Trivial changes (typo fixes, version bumps)
 
-### Step 5: Confidence Scoring (Haiku per issue)
+### Step 4: Confidence Scoring (Haiku per issue)
 
-For each issue from Step 4, launch a parallel Haiku agent with:
+For each issue from Step 3, launch a parallel Haiku agent with:
 - The PR details
 - Issue description
-- CLAUDE.md file paths from Step 2
+- CLAUDE.md file paths from Step 1
 
 Score each issue 0-100 using this rubric (give verbatim to agent):
 
@@ -193,7 +263,7 @@ Score each issue 0-100 using this rubric (give verbatim to agent):
 
 For CLAUDE.md issues, agent must verify the file actually calls out that issue.
 
-### Step 6: Filter by Threshold
+### Step 5: Filter by Threshold
 
 Default threshold: **70** (configurable via `--threshold N`)
 
@@ -201,7 +271,7 @@ Filter out issues scoring below threshold.
 
 If no issues pass, generate "No issues found" report and stop.
 
-### Step 7: Assign Severity Tiers
+### Step 6: Assign Severity Tiers
 
 Categorize passing issues:
 
@@ -212,7 +282,7 @@ Categorize passing issues:
 | **Medium** | Score 75-84, or code quality issue |
 | **Low** | Score 70-74, or style/convention issue |
 
-### Step 8: Generate Report
+### Step 7: Generate Report
 
 Output a structured report (do NOT post to GitHub):
 
@@ -274,6 +344,16 @@ Examples:
 
 **Note on code examples:** Suggested fixes are best-effort. If the fix is architectural or context-dependent, describe the approach instead of providing literal code. The goal is actionability — the reviewer should know exactly what to do.
 
+### Step 8: Cleanup (Local Mode Only)
+
+After the report is generated, clean up the worktree:
+
+```bash
+git worktree remove "$WORKTREE_DIR" --force
+```
+
+If cleanup fails, log a warning but don't fail the review (non-blocking).
+
 ## False Positive Examples
 
 Instruct agents to ignore:
@@ -289,18 +369,25 @@ Instruct agents to ignore:
 ## Notes
 
 - Do NOT build or typecheck - CI handles that
-- Use `gh` for all GitHub interaction
+- In local mode, prefer local git commands over `gh` commands where possible
+- In API mode, use `gh` for all GitHub interaction
 - Create a todo list before starting
 - Cite and link each issue (CLAUDE.md references must include link)
 - GitHub links require full SHA: `https://github.com/owner/repo/blob/<full-sha>/path/file.go#L10-L15`
 - Line range format: `L[start]-L[end]`
 - Include 1+ lines of context around the issue line
+- Worktrees are created in `.pr-review-worktrees/` and cleaned up automatically
 
 ## Quick Reference
 
+| Mode | Trigger | Benefits |
+|------|---------|----------|
+| Local | In git repo matching PR's repo | Faster, fewer API calls |
+| API | Not in repo or different repo | Works from anywhere |
+
 | Component | Model | Purpose |
 |-----------|-------|---------|
-| Eligibility | Haiku | Gate: skip drafts/closed/automated |
+| Mode detector | - | Choose local vs API mode |
 | CLAUDE.md finder | Haiku | Locate project standards |
 | Summarizer | Haiku | PR overview |
 | Reviewers (8x) | Opus | Deep analysis |
