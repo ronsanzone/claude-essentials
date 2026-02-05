@@ -21,8 +21,15 @@ var archiveCmd = &cobra.Command{
 
 		if len(args) > 0 {
 			sessionName = args[0]
-			if !strings.HasPrefix(sessionName, "cb:") {
-				sessionName = "cb:" + sessionName
+			if !strings.HasPrefix(sessionName, "cb_") {
+				sessionName = "cb_" + sessionName
+			}
+
+			// Try to find worktree path from session's pane
+			tmuxClient := tmux.NewClient()
+			paneDir := tmuxClient.GetPaneWorkingDir(sessionName)
+			if paneDir != "" {
+				worktreePath = paneDir
 			}
 		} else {
 			// Detect session from current directory
@@ -40,7 +47,7 @@ var archiveCmd = &cobra.Command{
 
 			dirName := filepath.Base(cwd)
 			for _, s := range sessions {
-				sessionSuffix := strings.TrimPrefix(s.Name, "cb:")
+				sessionSuffix := strings.TrimPrefix(s.Name, "cb_")
 				if strings.Contains(dirName, sessionSuffix) {
 					sessionName = s.Name
 					break
@@ -48,7 +55,7 @@ var archiveCmd = &cobra.Command{
 			}
 
 			if sessionName == "" {
-				return fmt.Errorf("no cb: session found for directory %s", dirName)
+				return fmt.Errorf("no cb_ session found for directory %s", dirName)
 			}
 		}
 
