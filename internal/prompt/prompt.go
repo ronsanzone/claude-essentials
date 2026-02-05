@@ -41,13 +41,17 @@ func CopyTemplate(srcDir, dstDir, name string) error {
 	if err != nil {
 		return fmt.Errorf("template %q not found: %w", name, err)
 	}
-	defer src.Close()
+	defer func() {
+		_ = src.Close()
+	}()
 
 	dst, err := os.Create(dstPath)
 	if err != nil {
 		return fmt.Errorf("failed to create file: %w", err)
 	}
-	defer dst.Close()
+	defer func() {
+		_ = dst.Close()
+	}()
 
 	if _, err := io.Copy(dst, src); err != nil {
 		return fmt.Errorf("failed to copy template: %w", err)

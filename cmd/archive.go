@@ -71,7 +71,7 @@ var archiveCmd = &cobra.Command{
 		// Kill tmux session
 		fmt.Println("Killing tmux session...")
 		killCmd := exec.Command("tmux", "kill-session", "-t", sessionName)
-		killCmd.Run() // Ignore error if session doesn't exist
+		_ = killCmd.Run() // Ignore error if session doesn't exist
 
 		// Remove worktree if we detected it
 		if worktreePath != "" {
