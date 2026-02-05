@@ -2,6 +2,8 @@ package cmd
 
 import (
 	"fmt"
+	"os"
+	"os/exec"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/rsanzone/clawdbay/internal/tmux"
@@ -14,38 +16,26 @@ var dashCmd = &cobra.Command{
 	Short: "Open interactive dashboard",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		tmuxClient := tmux.NewClient()
-		sessions, err := tmuxClient.ListSessions()
-		if err != nil {
-			return err
-		}
+		model := tui.InitialModel(tmuxClient)
 
-		// Get windows for each session
-		windows := make(map[string][]tmux.Window)
-		for _, s := range sessions {
-			wins, err := tmuxClient.ListWindows(s.Name)
-			if err == nil {
-				windows[s.Name] = wins
-			}
-		}
-
-		// Build model (temporary stub - will be updated in Task 14)
-		model := tui.InitialModel()
-		model.Groups = []tui.RepoGroup{}
-
-		// Run TUI
 		p := tea.NewProgram(model)
 		finalModel, err := p.Run()
 		if err != nil {
 			return err
 		}
 
-		// Handle selection
-		if m, ok := finalModel.(tui.Model); ok && !m.Quitting {
-			if m.Cursor < len(m.Groups) {
-				sessionName := m.Groups[m.Cursor].Name
-				fmt.Printf("Attaching to %s...\n", sessionName)
-				return tmuxClient.SwitchClient(sessionName)
+		// Handle selection (attach to session after TUI exits)
+		if m, ok := finalModel.(tui.Model); ok && m.SelectedName != "" {
+			if m.SelectedWindow != "" {
+				selectCmd := exec.Command("tmux", "select-window", "-t", m.SelectedName+":"+m.SelectedWindow)
+				_ = selectCmd.Run()
 			}
+
+			fmt.Printf("Attaching to %s...\n", m.SelectedName)
+			if os.Getenv("TMUX") != "" {
+				return tmuxClient.SwitchClient(m.SelectedName)
+			}
+			return tmuxClient.AttachSession(m.SelectedName)
 		}
 
 		return nil

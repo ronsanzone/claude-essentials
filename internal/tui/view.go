@@ -52,8 +52,8 @@ func (m Model) View() string {
 	b.WriteString(titleStyle.Render("- ClawdBay ") + strings.Repeat("-", 50) + "\n\n")
 
 	if len(m.Nodes) == 0 {
-		b.WriteString("  No active workflows.\n")
-		b.WriteString("  Start one with: cb start <ticket-id>\n")
+		b.WriteString("  No active sessions.\n")
+		b.WriteString("  Start one with: cb start <branch-name>\n")
 	} else {
 		for i, node := range m.Nodes {
 			cursor := "  "
