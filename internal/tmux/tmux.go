@@ -59,6 +59,15 @@ func (c *Client) ListSessions() ([]Session, error) {
 	return ParseSessionList(string(output)), nil
 }
 
+// ListWindows returns all windows in the given session.
+func (c *Client) ListWindows(session string) ([]Window, error) {
+	output, err := c.execCommand("tmux", "list-windows", "-t", session, "-F", "#{window_index}:#{window_name}:#{window_active}")
+	if err != nil {
+		return nil, fmt.Errorf("failed to list windows for %s: %w", session, err)
+	}
+	return ParseWindowList(string(output)), nil
+}
+
 // ParseSessionList parses tmux list-sessions output and returns only cb: prefixed sessions.
 func ParseSessionList(output string) []Session {
 	var sessions []Session

@@ -15,8 +15,11 @@ var rootCmd = &cobra.Command{
 Start workflows with git worktrees, manage multiple Claude sessions
 per worktree, and track session status from an interactive dashboard.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		// Default to dashboard when no subcommand
-		fmt.Println("ClawdBay dashboard would open here")
+		// Default to dashboard
+		if err := dashCmd.RunE(cmd, args); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
 	},
 }
 
