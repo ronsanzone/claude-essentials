@@ -78,7 +78,7 @@ func TestCLI_StartWorkflow(t *testing.T) {
 		t.Fatalf("failed to get working directory: %v", err)
 	}
 	projectName := filepath.Base(cwd)
-	worktreePath := filepath.Join(filepath.Dir(cwd), projectName+"-"+branchName)
+	worktreePath := filepath.Join(cwd, ".worktrees", projectName+"-"+branchName)
 
 	// Register cleanup to run even if test fails
 	t.Cleanup(func() {
@@ -109,6 +109,18 @@ func TestCLI_StartWorkflow(t *testing.T) {
 		listCmd := exec.Command("tmux", "list-sessions")
 		if listOutput, err := listCmd.Output(); err == nil {
 			t.Logf("Available sessions:\n%s", listOutput)
+		}
+	}
+
+	// Verify Claude window was created
+	windowCmd := exec.Command("tmux", "list-windows", "-t", sessionName, "-F", "#{window_name}")
+	windowOutput, err := windowCmd.Output()
+	if err != nil {
+		t.Errorf("failed to list windows: %v", err)
+	} else {
+		windowNames := string(windowOutput)
+		if !strings.Contains(windowNames, "claude") {
+			t.Errorf("claude window not created. Windows: %s", windowNames)
 		}
 	}
 
