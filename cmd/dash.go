@@ -28,9 +28,9 @@ var dashCmd = &cobra.Command{
 			}
 		}
 
-		// Build model
+		// Build model (temporary stub - will be updated in Task 14)
 		model := tui.InitialModel()
-		model.Groups = tui.GroupByWorktree(sessions, windows, tmuxClient)
+		model.Groups = []tui.RepoGroup{}
 
 		// Run TUI
 		p := tea.NewProgram(model)

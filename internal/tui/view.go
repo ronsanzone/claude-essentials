@@ -46,14 +46,15 @@ func (m Model) View() string {
 				cursor = "> "
 			}
 
-			// Group header
+			// Group header (temporary - will be rewritten in Task 13)
 			expandIcon := "v"
 			if !group.Expanded {
 				expandIcon = ">"
 			}
 
+			sessionCount := len(group.Sessions)
 			line := fmt.Sprintf("%s%s %s    %d sessions",
-				cursor, expandIcon, group.Name, group.SessionCount)
+				cursor, expandIcon, group.Name, sessionCount)
 
 			if i == m.Cursor {
 				b.WriteString(selectedStyle.Render(line) + "\n")
@@ -61,7 +62,7 @@ func (m Model) View() string {
 				b.WriteString(line + "\n")
 			}
 
-			// Sessions
+			// Sessions (temporary - will be rewritten in Task 13)
 			if group.Expanded {
 				for _, session := range group.Sessions {
 					statusIcon := "*"
@@ -79,7 +80,7 @@ func (m Model) View() string {
 					}
 
 					sessionLine := fmt.Sprintf("      %s %s",
-						statusStyle.Render(statusIcon+" "+session.Status),
+						statusStyle.Render(statusIcon+" "+string(session.Status)),
 						session.Name)
 					b.WriteString(sessionLine + "\n")
 				}
