@@ -32,7 +32,8 @@ const (
 
 // Client provides tmux operations.
 type Client struct {
-	execCommand func(name string, args ...string) ([]byte, error)
+	execCommand     func(name string, args ...string) ([]byte, error)
+	execInteractive func(name string, args ...string) error
 }
 
 // NewClient creates a Client that executes real tmux commands.
@@ -40,6 +41,11 @@ func NewClient() *Client {
 	return &Client{
 		execCommand: func(name string, args ...string) ([]byte, error) {
 			return exec.Command(name, args...).Output()
+		},
+		execInteractive: func(name string, args ...string) error {
+			cmd := exec.Command(name, args...)
+			// Interactive commands need terminal access, not output capture
+			return cmd.Run()
 		},
 	}
 }
@@ -68,7 +74,7 @@ func (c *Client) ListWindows(session string) ([]Window, error) {
 	return ParseWindowList(string(output)), nil
 }
 
-// ParseSessionList parses tmux list-sessions output and returns only cb: prefixed sessions.
+// ParseSessionList parses tmux list-sessions output and returns only cb_ prefixed sessions.
 func ParseSessionList(output string) []Session {
 	var sessions []Session
 	lines := strings.Split(strings.TrimSpace(output), "\n")
@@ -77,12 +83,12 @@ func ParseSessionList(output string) []Session {
 		if line == "" {
 			continue
 		}
-		// Only include cb: prefixed sessions
-		if !strings.HasPrefix(line, "cb:") {
+		// Only include cb_ prefixed sessions
+		if !strings.HasPrefix(line, "cb_") {
 			continue
 		}
 
-		// Parse: "cb:proj-123-auth: 3 windows (created ...)"
+		// Parse: "cb_proj-123-auth: 3 windows (created ...)"
 		// Session name is everything before the colon-space pattern " N windows"
 		colonSpace := strings.Index(line, ": ")
 		if colonSpace == -1 {
@@ -193,19 +199,30 @@ func (c *Client) CreateWindow(session, name string, command string) error {
 }
 
 // AttachSession attaches to the given tmux session.
+// This is an interactive command that takes over the terminal.
 func (c *Client) AttachSession(name string) error {
-	_, err := c.execCommand("tmux", "attach-session", "-t", name)
-	if err != nil {
+	if err := c.execInteractive("tmux", "attach-session", "-t", name); err != nil {
 		return fmt.Errorf("failed to attach to session %s: %w", name, err)
 	}
 	return nil
 }
 
 // SwitchClient switches the tmux client to the given session.
+// This is an interactive command that manipulates the terminal.
 func (c *Client) SwitchClient(name string) error {
-	_, err := c.execCommand("tmux", "switch-client", "-t", name)
-	if err != nil {
+	if err := c.execInteractive("tmux", "switch-client", "-t", name); err != nil {
 		return fmt.Errorf("failed to switch to session %s: %w", name, err)
 	}
 	return nil
+}
+
+// GetPaneWorkingDir returns the working directory of the first pane in a session.
+// Returns empty string on error.
+func (c *Client) GetPaneWorkingDir(session string) string {
+	target := session + ":0"
+	output, err := c.execCommand("tmux", "display-message", "-t", target, "-p", "#{pane_current_path}")
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(output))
 }

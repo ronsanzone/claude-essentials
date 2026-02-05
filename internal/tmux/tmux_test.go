@@ -7,26 +7,26 @@ import (
 )
 
 func TestParseSessionList(t *testing.T) {
-	output := `cb:proj-123-auth: 3 windows (created Tue Feb  4 10:30:00 2025)
-cb:proj-456-bug: 1 windows (created Tue Feb  4 11:00:00 2025)
+	output := `cb_proj-123-auth: 3 windows (created Tue Feb  4 10:30:00 2025)
+cb_proj-456-bug: 1 windows (created Tue Feb  4 11:00:00 2025)
 other-session: 2 windows (created Tue Feb  4 09:00:00 2025)`
 
 	sessions := ParseSessionList(output)
 
-	// Should only include cb: prefixed sessions
+	// Should only include cb_ prefixed sessions
 	if len(sessions) != 2 {
 		t.Errorf("got %d sessions, want 2", len(sessions))
 	}
 
-	if sessions[0].Name != "cb:proj-123-auth" {
-		t.Errorf("first session = %q, want %q", sessions[0].Name, "cb:proj-123-auth")
+	if sessions[0].Name != "cb_proj-123-auth" {
+		t.Errorf("first session = %q, want %q", sessions[0].Name, "cb_proj-123-auth")
 	}
 }
 
 func TestClient_ListSessions_Success(t *testing.T) {
 	client := &Client{
 		execCommand: func(name string, args ...string) ([]byte, error) {
-			return []byte(`cb:test-session: 1 windows (created Tue Feb  4 10:30:00 2025)
+			return []byte(`cb_test-session: 1 windows (created Tue Feb  4 10:30:00 2025)
 other-session: 2 windows (created Tue Feb  4 09:00:00 2025)`), nil
 		},
 	}
@@ -38,8 +38,8 @@ other-session: 2 windows (created Tue Feb  4 09:00:00 2025)`), nil
 	if len(sessions) != 1 {
 		t.Errorf("got %d sessions, want 1", len(sessions))
 	}
-	if sessions[0].Name != "cb:test-session" {
-		t.Errorf("session name = %q, want %q", sessions[0].Name, "cb:test-session")
+	if sessions[0].Name != "cb_test-session" {
+		t.Errorf("session name = %q, want %q", sessions[0].Name, "cb_test-session")
 	}
 }
 
@@ -147,13 +147,13 @@ func TestClient_CreateSession(t *testing.T) {
 		},
 	}
 
-	err := client.CreateSession("cb:proj-123-test", "/path/to/worktree")
+	err := client.CreateSession("cb_proj-123-test", "/path/to/worktree")
 	if err != nil {
 		t.Fatalf("CreateSession() error = %v", err)
 	}
 
 	// Should create detached session with working dir
-	expectedArgs := []string{"new-session", "-d", "-s", "cb:proj-123-test", "-c", "/path/to/worktree"}
+	expectedArgs := []string{"new-session", "-d", "-s", "cb_proj-123-test", "-c", "/path/to/worktree"}
 	if len(capturedArgs) != len(expectedArgs) {
 		t.Fatalf("args = %v, want %v", capturedArgs, expectedArgs)
 	}
@@ -189,12 +189,12 @@ func TestClient_CreateWindow(t *testing.T) {
 		},
 	}
 
-	err := client.CreateWindow("cb:test", "claude:default", "claude")
+	err := client.CreateWindow("cb_test", "claude:default", "claude")
 	if err != nil {
 		t.Fatalf("CreateWindow() error = %v", err)
 	}
 
-	expected := []string{"new-window", "-t", "cb:test", "-n", "claude:default", "claude"}
+	expected := []string{"new-window", "-t", "cb_test", "-n", "claude:default", "claude"}
 	if len(capturedArgs) != len(expected) {
 		t.Fatalf("args = %v, want %v", capturedArgs, expected)
 	}
@@ -212,7 +212,7 @@ func TestClient_CreateWindow_Error(t *testing.T) {
 		},
 	}
 
-	err := client.CreateWindow("cb:test", "window", "cmd")
+	err := client.CreateWindow("cb_test", "window", "cmd")
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
@@ -223,8 +223,8 @@ func TestClient_CreateWindow_Error(t *testing.T) {
 
 func TestClient_AttachSession_Error(t *testing.T) {
 	client := &Client{
-		execCommand: func(name string, args ...string) ([]byte, error) {
-			return nil, errors.New("tmux error")
+		execInteractive: func(name string, args ...string) error {
+			return errors.New("tmux error")
 		},
 	}
 
@@ -239,8 +239,8 @@ func TestClient_AttachSession_Error(t *testing.T) {
 
 func TestClient_SwitchClient_Error(t *testing.T) {
 	client := &Client{
-		execCommand: func(name string, args ...string) ([]byte, error) {
-			return nil, errors.New("tmux error")
+		execInteractive: func(name string, args ...string) error {
+			return errors.New("tmux error")
 		},
 	}
 
@@ -250,5 +250,41 @@ func TestClient_SwitchClient_Error(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "failed to switch to session") {
 		t.Errorf("error = %q, want to contain 'failed to switch to session'", err)
+	}
+}
+
+func TestClient_GetPaneWorkingDir(t *testing.T) {
+	tests := []struct {
+		name     string
+		output   string
+		err      error
+		expected string
+	}{
+		{
+			name:     "valid path",
+			output:   "/Users/ron/code/project/.worktrees/project-feat-auth\n",
+			err:      nil,
+			expected: "/Users/ron/code/project/.worktrees/project-feat-auth",
+		},
+		{
+			name:     "error returns empty",
+			output:   "",
+			err:      errors.New("no pane"),
+			expected: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			client := &Client{
+				execCommand: func(name string, args ...string) ([]byte, error) {
+					return []byte(tt.output), tt.err
+				},
+			}
+			result := client.GetPaneWorkingDir(tt.name)
+			if result != tt.expected {
+				t.Errorf("GetPaneWorkingDir() = %q, want %q", result, tt.expected)
+			}
+		})
 	}
 }
