@@ -97,7 +97,7 @@ func (m Model) renderNode(node TreeNode, cursor string) string {
 		}
 		statusBadge := renderStatus(session.Status)
 		// Right-align status badge (pad to 60 chars)
-		name := fmt.Sprintf("  %s %s", icon, session.Name)
+		name := fmt.Sprintf("  %s %s", icon, sessionStyle.Render(session.Name))
 		padding := 60 - len(name) - len(statusBadge)
 		if padding < 1 {
 			padding = 1
@@ -115,7 +115,7 @@ func (m Model) renderNode(node TreeNode, cursor string) string {
 			}
 		}
 		// Right-align status badge (pad to 60 chars)
-		name := fmt.Sprintf("      %s", window.Name)
+		name := fmt.Sprintf("      %s", windowStyle.Render(window.Name))
 		padding := 60 - len(name) - len(statusBadge)
 		if padding < 1 {
 			padding = 1
