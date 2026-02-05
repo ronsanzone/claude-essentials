@@ -1,6 +1,7 @@
 package tmux
 
 import (
+	"errors"
 	"testing"
 )
 
@@ -64,4 +65,74 @@ type mockError struct {
 
 func (e *mockError) Error() string {
 	return e.msg
+}
+
+func TestParseWindowList(t *testing.T) {
+	// Format from: tmux list-windows -F "#{window_index}:#{window_name}:#{window_active}"
+	output := `0:shell:1
+1:claude:default:0
+2:claude:research:0`
+
+	windows := ParseWindowList(output)
+
+	if len(windows) != 3 {
+		t.Fatalf("got %d windows, want 3", len(windows))
+	}
+
+	if windows[0].Name != "shell" {
+		t.Errorf("window 0 name = %q, want %q", windows[0].Name, "shell")
+	}
+	if !windows[0].Active {
+		t.Error("window 0 should be active")
+	}
+	if windows[1].Name != "claude:default" {
+		t.Errorf("window 1 name = %q, want %q", windows[1].Name, "claude:default")
+	}
+}
+
+func TestWindow_IsClaudeSession(t *testing.T) {
+	tests := []struct {
+		name string
+		want bool
+	}{
+		{"shell", false},
+		{"claude:default", true},
+		{"claude:research", true},
+		{"vim", false},
+	}
+
+	for _, tt := range tests {
+		w := Window{Name: tt.name}
+		if got := w.IsClaudeSession(); got != tt.want {
+			t.Errorf("Window{%q}.IsClaudeSession() = %v, want %v", tt.name, got, tt.want)
+		}
+	}
+}
+
+func TestClient_GetPaneStatus(t *testing.T) {
+	tests := []struct {
+		name     string
+		output   string
+		err      error
+		expected Status
+	}{
+		{"claude running", "claude", nil, StatusIdle},
+		{"shell running", "zsh", nil, StatusDone},
+		{"bash running", "bash", nil, StatusDone},
+		{"error", "", errors.New("error"), StatusDone},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			client := &Client{
+				execCommand: func(name string, args ...string) ([]byte, error) {
+					return []byte(tt.output), tt.err
+				},
+			}
+			status := client.GetPaneStatus("session", "window")
+			if status != tt.expected {
+				t.Errorf("GetPaneStatus() = %v, want %v", status, tt.expected)
+			}
+		})
+	}
 }
