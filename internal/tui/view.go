@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
+	"github.com/rsanzone/clawdbay/internal/tmux"
 )
 
 var (
@@ -13,7 +14,18 @@ var (
 		Foreground(lipgloss.Color("170"))
 
 	selectedStyle = lipgloss.NewStyle().
+		Bold(true).
 		Foreground(lipgloss.Color("212"))
+
+	repoStyle = lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("141"))
+
+	sessionStyle = lipgloss.NewStyle().
+		Foreground(lipgloss.Color("255"))
+
+	windowStyle = lipgloss.NewStyle().
+		Foreground(lipgloss.Color("245"))
 
 	idleStyle = lipgloss.NewStyle().
 		Foreground(lipgloss.Color("214"))
@@ -23,6 +35,9 @@ var (
 
 	doneStyle = lipgloss.NewStyle().
 		Foreground(lipgloss.Color("245"))
+
+	footerStyle = lipgloss.NewStyle().
+		Foreground(lipgloss.Color("241"))
 )
 
 // View implements tea.Model.
@@ -36,62 +51,109 @@ func (m Model) View() string {
 	// Header
 	b.WriteString(titleStyle.Render("- ClawdBay ") + strings.Repeat("-", 50) + "\n\n")
 
-	if len(m.Groups) == 0 {
+	if len(m.Nodes) == 0 {
 		b.WriteString("  No active workflows.\n")
 		b.WriteString("  Start one with: cb start <ticket-id>\n")
 	} else {
-		for i, group := range m.Groups {
+		for i, node := range m.Nodes {
 			cursor := "  "
 			if i == m.Cursor {
 				cursor = "> "
 			}
 
-			// Group header (temporary - will be rewritten in Task 13)
-			expandIcon := "v"
-			if !group.Expanded {
-				expandIcon = ">"
-			}
-
-			sessionCount := len(group.Sessions)
-			line := fmt.Sprintf("%s%s %s    %d sessions",
-				cursor, expandIcon, group.Name, sessionCount)
+			line := m.renderNode(node, cursor)
 
 			if i == m.Cursor {
 				b.WriteString(selectedStyle.Render(line) + "\n")
 			} else {
 				b.WriteString(line + "\n")
 			}
-
-			// Sessions (temporary - will be rewritten in Task 13)
-			if group.Expanded {
-				for _, session := range group.Sessions {
-					statusIcon := "*"
-					var statusStyle lipgloss.Style
-
-					switch session.Status {
-					case "IDLE":
-						statusStyle = idleStyle
-					case "WORKING":
-						statusStyle = workingStyle
-					case "DONE":
-						statusStyle = doneStyle
-					default:
-						statusStyle = idleStyle
-					}
-
-					sessionLine := fmt.Sprintf("      %s %s",
-						statusStyle.Render(statusIcon+" "+string(session.Status)),
-						session.Name)
-					b.WriteString(sessionLine + "\n")
-				}
-			}
-			b.WriteString("\n")
 		}
 	}
 
-	// Footer
+	// Dynamic footer based on selected node type
 	b.WriteString("\n")
-	b.WriteString("  [Enter] Attach  [n] New  [c] Add Claude  [p] Add Prompt  [x] Archive  [q] Quit\n")
+	footer := m.renderFooter()
+	b.WriteString(footerStyle.Render(footer) + "\n")
 
 	return b.String()
+}
+
+func (m Model) renderNode(node TreeNode, cursor string) string {
+	switch node.Type {
+	case NodeRepo:
+		repo := m.Groups[node.RepoIndex]
+		icon := "▸"
+		if repo.Expanded {
+			icon = "▼"
+		}
+		return fmt.Sprintf("%s%s %s", cursor, icon, repoStyle.Render(repo.Name))
+
+	case NodeSession:
+		session := m.Groups[node.RepoIndex].Sessions[node.SessionIndex]
+		icon := "▸"
+		if session.Expanded {
+			icon = "▼"
+		}
+		statusBadge := renderStatus(session.Status)
+		// Right-align status badge (pad to 60 chars)
+		name := fmt.Sprintf("  %s %s", icon, session.Name)
+		padding := 60 - len(name) - len(statusBadge)
+		if padding < 1 {
+			padding = 1
+		}
+		return fmt.Sprintf("%s%s%s%s", cursor, name, strings.Repeat(" ", padding), statusBadge)
+
+	case NodeWindow:
+		session := m.Groups[node.RepoIndex].Sessions[node.SessionIndex]
+		window := session.Windows[node.WindowIndex]
+		statusBadge := ""
+		if strings.HasPrefix(window.Name, "claude") {
+			key := session.Name + ":" + window.Name
+			if status, ok := m.WindowStatuses[key]; ok {
+				statusBadge = renderStatus(status)
+			}
+		}
+		// Right-align status badge (pad to 60 chars)
+		name := fmt.Sprintf("      %s", window.Name)
+		padding := 60 - len(name) - len(statusBadge)
+		if padding < 1 {
+			padding = 1
+		}
+		return fmt.Sprintf("%s%s%s%s", cursor, name, strings.Repeat(" ", padding), statusBadge)
+
+	default:
+		return cursor + "Unknown"
+	}
+}
+
+func (m Model) renderFooter() string {
+	if m.Cursor >= len(m.Nodes) {
+		return "[q] quit"
+	}
+
+	node := m.Nodes[m.Cursor]
+	switch node.Type {
+	case NodeRepo:
+		return "[enter] expand  [n] new  [q] quit"
+	case NodeSession:
+		return "[enter] attach  [c] add claude  [x] archive  [r] refresh  [q] quit"
+	case NodeWindow:
+		return "[enter] attach  [r] refresh  [q] quit"
+	default:
+		return "[q] quit"
+	}
+}
+
+func renderStatus(status tmux.Status) string {
+	switch status {
+	case tmux.StatusWorking:
+		return workingStyle.Render("● WORKING")
+	case tmux.StatusIdle:
+		return idleStyle.Render("○ IDLE")
+	case tmux.StatusDone:
+		return doneStyle.Render("◌ DONE")
+	default:
+		return doneStyle.Render("◌ DONE")
+	}
 }
