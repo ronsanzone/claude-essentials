@@ -3,6 +3,7 @@ package tmux
 import (
 	"fmt"
 	"os/exec"
+	"path/filepath"
 	"strings"
 )
 
@@ -225,4 +226,22 @@ func (c *Client) GetPaneWorkingDir(session string) string {
 		return ""
 	}
 	return strings.TrimSpace(string(output))
+}
+
+// GetRepoName returns the repository name for a session by querying the
+// pane's working directory and deriving the git toplevel.
+// Returns "Unknown" if the repo cannot be determined.
+func (c *Client) GetRepoName(session string) string {
+	paneDir := c.GetPaneWorkingDir(session)
+	if paneDir == "" {
+		return "Unknown"
+	}
+
+	output, err := c.execCommand("git", "-C", paneDir, "rev-parse", "--show-toplevel")
+	if err != nil {
+		return "Unknown"
+	}
+
+	repoRoot := strings.TrimSpace(string(output))
+	return filepath.Base(repoRoot)
 }

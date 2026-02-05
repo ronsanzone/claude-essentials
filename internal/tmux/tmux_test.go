@@ -288,3 +288,51 @@ func TestClient_GetPaneWorkingDir(t *testing.T) {
 		})
 	}
 }
+
+func TestClient_GetRepoName(t *testing.T) {
+	tests := []struct {
+		name     string
+		outputs  map[string]string
+		expected string
+	}{
+		{
+			name: "derives repo from pane path",
+			outputs: map[string]string{
+				"tmux": "/Users/ron/code/my-project/.worktrees/my-project-feat",
+				"git":  "/Users/ron/code/my-project\n",
+			},
+			expected: "my-project",
+		},
+		{
+			name:     "tmux error returns unknown",
+			outputs:  map[string]string{},
+			expected: "Unknown",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			client := &Client{
+				execCommand: func(name string, args ...string) ([]byte, error) {
+					if name == "tmux" {
+						if out, ok := tt.outputs["tmux"]; ok {
+							return []byte(out), nil
+						}
+						return nil, errors.New("tmux error")
+					}
+					if name == "git" {
+						if out, ok := tt.outputs["git"]; ok {
+							return []byte(out), nil
+						}
+						return nil, errors.New("git error")
+					}
+					return nil, errors.New("unknown command")
+				},
+			}
+			result := client.GetRepoName("cb_test")
+			if result != tt.expected {
+				t.Errorf("GetRepoName() = %q, want %q", result, tt.expected)
+			}
+		})
+	}
+}
