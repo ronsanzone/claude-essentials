@@ -1,7 +1,7 @@
 package main
 
-import "fmt"
+import "github.com/rsanzone/clawdbay/cmd"
 
 func main() {
-	fmt.Println("ClawdBay - A harbor for your Claude sessions")
+	cmd.Execute()
 }
