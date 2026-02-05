@@ -7,9 +7,13 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// Version is the current version of ClawdBay.
+var Version = "0.2.0"
+
 var rootCmd = &cobra.Command{
-	Use:   "cb",
-	Short: "ClawdBay - A harbor for your Claude sessions",
+	Use:     "cb",
+	Short:   "ClawdBay - A harbor for your Claude sessions",
+	Version: Version,
 	Long: `ClawdBay manages multi-session Claude Code workflows.
 
 Start workflows with git worktrees, manage multiple Claude sessions
