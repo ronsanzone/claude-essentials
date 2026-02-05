@@ -11,6 +11,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var startDetach bool
+
 var startCmd = &cobra.Command{
 	Use:   "start <branch-name>",
 	Short: "Start a new workflow with a git worktree and tmux session",
@@ -18,12 +20,14 @@ var startCmd = &cobra.Command{
 
 Example:
   cb start proj-123-auth-feature
-  cb start feature/add-login`,
+  cb start feature/add-login
+  cb start --detach my-branch   # Create without attaching`,
 	Args: cobra.ExactArgs(1),
 	RunE: runStart,
 }
 
 func init() {
+	startCmd.Flags().BoolVarP(&startDetach, "detach", "d", false, "Create session without attaching to it")
 	rootCmd.AddCommand(startCmd)
 }
 
@@ -41,7 +45,17 @@ func runStart(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to get current directory: %w", err)
 	}
 	projectName := filepath.Base(cwd)
-	worktreeDir := filepath.Join(filepath.Dir(cwd), projectName+"-"+branchName)
+
+	// Ensure .worktrees directory exists
+	worktreesDir := filepath.Join(cwd, ".worktrees")
+	if err := os.MkdirAll(worktreesDir, 0755); err != nil {
+		return fmt.Errorf("failed to create .worktrees directory: %w", err)
+	}
+
+	// Add .worktrees/ to .gitignore if not already present
+	ensureGitignoreEntry(cwd, ".worktrees/")
+
+	worktreeDir := filepath.Join(cwd, ".worktrees", projectName+"-"+branchName)
 
 	// Check if worktree directory already exists
 	if _, err := os.Stat(worktreeDir); err == nil {
@@ -71,12 +85,23 @@ func runStart(cmd *cobra.Command, args []string) error {
 	}
 
 	// Create tmux session
-	sessionName := "cb:" + branchName
+	sessionName := "cb_" + branchName
 	tmuxClient := tmux.NewClient()
 
 	fmt.Printf("Creating tmux session: %s\n", sessionName)
 	if err := tmuxClient.CreateSession(sessionName, worktreeDir); err != nil {
 		return fmt.Errorf("failed to create tmux session: %w", err)
+	}
+
+	// Create Claude window
+	if err := tmuxClient.CreateWindow(sessionName, "claude", "claude"); err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: failed to create Claude window: %v\n", err)
+	}
+
+	// If detach mode, just print instructions and exit
+	if startDetach {
+		fmt.Printf("Session created. Attach with: tmux attach -t %s\n", sessionName)
+		return nil
 	}
 
 	// Switch to the session
@@ -107,4 +132,30 @@ func sanitizeBranchName(name string) string {
 	}
 
 	return strings.Trim(cleaned, "-")
+}
+
+// ensureGitignoreEntry adds an entry to .gitignore if not already present.
+func ensureGitignoreEntry(repoDir, entry string) {
+	gitignorePath := filepath.Join(repoDir, ".gitignore")
+
+	content, err := os.ReadFile(gitignorePath)
+	if err == nil {
+		lines := strings.Split(string(content), "\n")
+		for _, line := range lines {
+			if strings.TrimSpace(line) == entry {
+				return
+			}
+		}
+	}
+
+	f, err := os.OpenFile(gitignorePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return
+	}
+	defer func() { _ = f.Close() }()
+
+	if len(content) > 0 && content[len(content)-1] != '\n' {
+		_, _ = f.WriteString("\n")
+	}
+	_, _ = f.WriteString(entry + "\n")
 }
