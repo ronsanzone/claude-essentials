@@ -160,3 +160,43 @@ func (c *Client) GetPaneStatus(session, window string) Status {
 
 	return StatusDone
 }
+
+// CreateSession creates a new detached tmux session with the given name and working directory.
+func (c *Client) CreateSession(name, workdir string) error {
+	_, err := c.execCommand("tmux", "new-session", "-d", "-s", name, "-c", workdir)
+	if err != nil {
+		return fmt.Errorf("failed to create session %s: %w", name, err)
+	}
+	return nil
+}
+
+// CreateWindow creates a new window in the given session.
+func (c *Client) CreateWindow(session, name string, command string) error {
+	args := []string{"new-window", "-t", session, "-n", name}
+	if command != "" {
+		args = append(args, command)
+	}
+	_, err := c.execCommand("tmux", args...)
+	if err != nil {
+		return fmt.Errorf("failed to create window %s in %s: %w", name, session, err)
+	}
+	return nil
+}
+
+// AttachSession attaches to the given tmux session.
+func (c *Client) AttachSession(name string) error {
+	_, err := c.execCommand("tmux", "attach-session", "-t", name)
+	if err != nil {
+		return fmt.Errorf("failed to attach to session %s: %w", name, err)
+	}
+	return nil
+}
+
+// SwitchClient switches the tmux client to the given session.
+func (c *Client) SwitchClient(name string) error {
+	_, err := c.execCommand("tmux", "switch-client", "-t", name)
+	if err != nil {
+		return fmt.Errorf("failed to switch to session %s: %w", name, err)
+	}
+	return nil
+}

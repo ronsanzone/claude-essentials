@@ -2,6 +2,7 @@ package tmux
 
 import (
 	"errors"
+	"strings"
 	"testing"
 )
 
@@ -134,5 +135,120 @@ func TestClient_GetPaneStatus(t *testing.T) {
 				t.Errorf("GetPaneStatus() = %v, want %v", status, tt.expected)
 			}
 		})
+	}
+}
+
+func TestClient_CreateSession(t *testing.T) {
+	var capturedArgs []string
+	client := &Client{
+		execCommand: func(name string, args ...string) ([]byte, error) {
+			capturedArgs = args
+			return nil, nil
+		},
+	}
+
+	err := client.CreateSession("cb:proj-123-test", "/path/to/worktree")
+	if err != nil {
+		t.Fatalf("CreateSession() error = %v", err)
+	}
+
+	// Should create detached session with working dir
+	expectedArgs := []string{"new-session", "-d", "-s", "cb:proj-123-test", "-c", "/path/to/worktree"}
+	if len(capturedArgs) != len(expectedArgs) {
+		t.Fatalf("args = %v, want %v", capturedArgs, expectedArgs)
+	}
+	for i, arg := range expectedArgs {
+		if capturedArgs[i] != arg {
+			t.Errorf("arg[%d] = %q, want %q", i, capturedArgs[i], arg)
+		}
+	}
+}
+
+func TestClient_CreateSession_Error(t *testing.T) {
+	client := &Client{
+		execCommand: func(name string, args ...string) ([]byte, error) {
+			return nil, errors.New("tmux error")
+		},
+	}
+
+	err := client.CreateSession("test", "/path")
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if !strings.Contains(err.Error(), "failed to create session") {
+		t.Errorf("error = %q, want to contain 'failed to create session'", err)
+	}
+}
+
+func TestClient_CreateWindow(t *testing.T) {
+	var capturedArgs []string
+	client := &Client{
+		execCommand: func(name string, args ...string) ([]byte, error) {
+			capturedArgs = args
+			return nil, nil
+		},
+	}
+
+	err := client.CreateWindow("cb:test", "claude:default", "claude")
+	if err != nil {
+		t.Fatalf("CreateWindow() error = %v", err)
+	}
+
+	expected := []string{"new-window", "-t", "cb:test", "-n", "claude:default", "claude"}
+	if len(capturedArgs) != len(expected) {
+		t.Fatalf("args = %v, want %v", capturedArgs, expected)
+	}
+	for i, arg := range expected {
+		if capturedArgs[i] != arg {
+			t.Errorf("arg[%d] = %q, want %q", i, capturedArgs[i], arg)
+		}
+	}
+}
+
+func TestClient_CreateWindow_Error(t *testing.T) {
+	client := &Client{
+		execCommand: func(name string, args ...string) ([]byte, error) {
+			return nil, errors.New("tmux error")
+		},
+	}
+
+	err := client.CreateWindow("cb:test", "window", "cmd")
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if !strings.Contains(err.Error(), "failed to create window") {
+		t.Errorf("error = %q, want to contain 'failed to create window'", err)
+	}
+}
+
+func TestClient_AttachSession_Error(t *testing.T) {
+	client := &Client{
+		execCommand: func(name string, args ...string) ([]byte, error) {
+			return nil, errors.New("tmux error")
+		},
+	}
+
+	err := client.AttachSession("test")
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if !strings.Contains(err.Error(), "failed to attach to session") {
+		t.Errorf("error = %q, want to contain 'failed to attach to session'", err)
+	}
+}
+
+func TestClient_SwitchClient_Error(t *testing.T) {
+	client := &Client{
+		execCommand: func(name string, args ...string) ([]byte, error) {
+			return nil, errors.New("tmux error")
+		},
+	}
+
+	err := client.SwitchClient("test")
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if !strings.Contains(err.Error(), "failed to switch to session") {
+		t.Errorf("error = %q, want to contain 'failed to switch to session'", err)
 	}
 }
