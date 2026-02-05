@@ -20,6 +20,19 @@ Launches 8 specialized Opus agents in parallel to review a PR from different ang
 - Executive summary + code fix examples
 - Positive observations section
 
+## Anti-Patterns
+
+These patterns cause context explosion and degrade review accuracy. Avoid them.
+
+| Anti-Pattern | Why It's Bad | Do This Instead |
+|--------------|--------------|-----------------|
+| Using `TaskOutput` to collect agent results | Pulls full transcripts (~50KB each) including every tool call and response | Wait for agents to return naturally via the Task tool response |
+| Running agents with `run_in_background: true` | Forces TaskOutput usage to retrieve results later | Run agents in foreground; they return when complete |
+| Agents returning excessive code context | Full functions/files multiply context across 8 agents | Return issue-scoped context: 3-10 lines of problematic code + suggested fix |
+| Agents returning raw file contents | Files read during analysis leak into orchestrator context | Return findings about files, not file contents |
+
+**Key principle:** Agents can read and analyze anything internally. The constraint is what they *return* to the orchestrator — enough to be actionable, no more.
+
 ## Usage
 
 ```

@@ -6,5 +6,9 @@
     "code-review@claude-plugins-official": true,
     "superpowers@superpowers-marketplace": true
   },
-  "alwaysThinkingEnabled": true
+  "alwaysThinkingEnabled": true,
+  "statusLine": {
+    "type": "command",
+    "command": "/Users/ron.sanzone/.claude/statusline-command.sh"
+  }
 }
