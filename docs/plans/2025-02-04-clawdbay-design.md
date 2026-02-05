@@ -13,7 +13,7 @@ ClawdBay is a CLI + TUI tool for managing multi-session Claude Code workflows. I
 1. **Discovery** - Losing track of which Claude sessions exist and what they're doing
 2. **Context Switching** - Mental overhead when returning to sessions after time away
 3. **Lifecycle Management** - Too many manual steps to spin up worktree + session + Claude
-4. **Workflow Automation** - Streamlined path from Jira ticket to working code
+4. **Workflow Automation** - Streamlined path from idea to working code
 
 ## Architecture
 
@@ -28,10 +28,10 @@ ClawdBay is a CLI + TUI tool for managing multi-session Claude Code workflows. I
 │  └────┬─────┘     └──────────┘     └──────────┘                │
 │       │                                                         │
 │       ▼                                                         │
-│  ┌──────────┐     ┌──────────┐     ┌──────────┐                │
-│  │   tmux   │     │ worktree │     │   Jira   │                │
-│  │ sessions │     │  + files │     │   CLI    │                │
-│  └──────────┘     └──────────┘     └──────────┘                │
+│  ┌──────────┐     ┌──────────┐                                 │
+│  │   tmux   │     │ worktree │                                 │
+│  │ sessions │     │  + files │                                 │
+│  └──────────┘     └──────────┘                                 │
 │                                                                  │
 │  ┌──────────────────────────────────────────────────────────┐  │
 │  │                   Interactive Dashboard                   │  │
@@ -48,8 +48,9 @@ ClawdBay is a CLI + TUI tool for managing multi-session Claude Code workflows. I
 
 ```bash
 # Start a new workflow - creates worktree + tmux session
-cb start <ticket-id> [--title "short description"]
-cb start PROJ-123 --title "auth feature"
+cb start <branch-name>
+cb start proj-123-auth-feature
+cb start feature/add-login
 
 # Add a Claude session to current worktree
 cb claude [--name <name>] [--prompt <file>]
@@ -179,14 +180,13 @@ Detection is filtered to `cb:*` sessions only, ignoring other tmux sessions.
 
 ## Workflow Example
 
-### Starting Work on a Ticket
+### Starting Work on a Feature
 
 ```bash
-# 1. Start workflow from Jira ticket
-cb start PROJ-123 --title "add user auth"
+# 1. Start workflow with branch name
+cb start proj-123-add-user-auth
 # Creates: worktree at ../myproject-proj-123-add-user-auth
 # Creates: tmux session cb:proj-123-add-user-auth
-# Fetches: Jira title/description for context
 
 # 2. Add research prompt, customize for this ticket
 cb prompt add research
@@ -216,48 +216,22 @@ cb archive
 # Kills tmux session, removes worktree, keeps git branch
 ```
 
-## Jira Integration
-
-Uses existing `jira-cli` installation.
-
-### At Start
-
-```bash
-cb start PROJ-123
-# Fetches: jira issue view PROJ-123 --plain
-# Extracts: title, description
-# Uses title for worktree naming if --title not provided
-```
-
-### On Demand
-
-Claude can fetch additional context via jira-cli skill:
-- Comments
-- Linked issues
-- Acceptance criteria
-- Attachments
-
 ## Prompt Template Format
 
-Templates are markdown files with optional frontmatter:
+Templates are plain markdown files. When copied to a worktree via `cb prompt add`, users customize them manually for their specific task.
 
 ```markdown
----
-name: research
-description: Deep investigation of problem space
----
-
-# Research: {{ticket}}
+# Research
 
 ## Context
 
-{{jira_description}}
+<!-- Add ticket ID and description here -->
 
 ## Instructions
 
 1. Explore the codebase to understand current implementation
 2. Identify key files and components involved
-3. Document findings in docs/plans/YYYY-MM-DD-{{topic}}-research.md
+3. Document findings in docs/plans/YYYY-MM-DD-<topic>-research.md
 
 ## Output
 
@@ -268,21 +242,20 @@ Produce a research report with:
 - Open questions
 ```
 
-Variables like `{{ticket}}` and `{{jira_description}}` are substituted when copying to worktree.
+Templates are intentionally simple - no variable substitution. Users edit the copied file to add context specific to their task.
 
 ## Implementation Notes
 
 ### Technology Choices
 
-- **Language:** Bash or Go (TBD based on complexity)
-- **TUI:** Could use gum, fzf, or a Go TUI library (bubbletea)
+- **Language:** Go
+- **TUI:** Bubbletea with Lipgloss styling
 - **tmux integration:** Direct tmux commands
 
 ### Integration with Existing Tools
 
 - Builds on `init-worktree` script patterns
 - Complements `tmux-sessionizer` (cb handles workflow sessions, sessionizer handles general navigation)
-- Uses existing `jira-cli` skill for Jira integration
 
 ### Future Enhancements (Path to Autonomous)
 
@@ -294,6 +267,6 @@ Once the prompt-based workflow is solid:
 
 ## Open Questions
 
-1. **Bash vs Go** - Bash is faster to prototype, Go gives better TUI options
-2. **Prompt variable syntax** - `{{var}}` vs `$VAR` vs other
+1. ~~**Bash vs Go**~~ - Resolved: Go for better TUI support with Bubbletea
+2. ~~**Prompt variable syntax**~~ - Resolved: No variable substitution, users edit templates manually
 3. **tmux binding** - Should `cb dash` also be bindable to a tmux prefix key?

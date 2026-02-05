@@ -2,13 +2,89 @@
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
-**Goal:** Build `cb`, a CLI + TUI tool for managing multi-session Claude Code workflows from Jira ticket to completion.
+## Progress
 
-**Architecture:** Go CLI using Cobra for commands, Bubbletea for TUI dashboard. Integrates with tmux for session management, jira-cli for ticket info, and manages prompt templates. State derived from tmux (no separate state files).
+- [x] **Task 0:** Verify Environment and Dependencies - `06c7fcb`
+- [x] **Task 1:** Initialize Go Module - `bdd1252`
+- [x] **Task 2:** Add Cobra CLI Framework - `2abba97`
+- [x] **Task 3:** Add Version Command - `70f9b20`
+- [x] **Task 4:** Create Config Package - `7969956`
+- [x] **Task 5:** Add Config Initialization - `d20021a`
+- [x] **Task 6:** Create tmux Package - Session Detection - `f9748a3`
+- [x] **Task 7:** Add tmux Command Execution - `057778e`
+- [x] **Task 8:** Add Window Listing and Status Detection - `20e5e67`
+- [x] **Task 9:** Add Session Creation - `b084089`
+- [x] **Task 10:** Add `cb start` Command - `794b7c6`
+- [x] **Task 11:** Add `cb claude` Command - `589f143`
+- [x] **Task 12:** Add `cb prompt` Commands - `2439d29`
+- [x] **Task 13:** Add `cb list` Command - `c06b76c`
+- [x] **Task 14:** Add `cb archive` Command - `d08d469`
+- [x] **Task 15:** Add Bubbletea Dependencies - `49cf7c3`
+- [x] **Task 16:** Create Dashboard Model - `a867b7e`
+- [x] **Task 17:** Implement Bubbletea Update/View - `c4ab16d`
+- [x] **Task 18:** Add `cb dash` Command - `7cc85f6`
+- [x] **Task 19:** Add Integration Test - `4ec6fce`
+- [x] **Task 20:** Create Default Prompt Templates - `fea6a45`
+- [x] **Task 21:** Add Install Command for Templates - `72641a3`
+- [x] **Task 22:** Final Build and Test - `2f0b332`
 
-**Tech Stack:** Go 1.21+, Cobra (CLI), Bubbletea (TUI), Lipgloss (styling), jira-cli (external), tmux (external)
+---
+
+**Goal:** Build `cb`, a CLI + TUI tool for managing multi-session Claude Code workflows from idea to completion.
+
+**Architecture:** Go CLI using Cobra for commands, Bubbletea for TUI dashboard. Integrates with tmux for session management and manages prompt templates. State derived from tmux (no separate state files).
+
+**Tech Stack:** Go 1.21+, Cobra (CLI), Bubbletea (TUI), Lipgloss (styling), tmux (external)
 
 **Design Doc:** `docs/plans/2025-02-04-clawdbay-design.md`
+
+---
+
+## Phase 0: Prerequisites Verification
+
+### Task 0: Verify Environment and Dependencies
+
+**Purpose:** Ensure external dependencies work as expected before building.
+
+**Step 1: Verify tmux is available**
+
+```bash
+tmux -V
+```
+Expected: `tmux 3.x` or similar
+
+**Step 2: Create verification commands**
+
+Create `Makefile`:
+
+```makefile
+.PHONY: build test lint verify install clean
+
+build:
+	go build -o cb main.go
+
+test:
+	go test ./...
+
+lint:
+	golangci-lint run
+
+verify: test lint
+	@echo "All checks passed"
+
+install: build
+	cp cb ~/bin/cb
+
+clean:
+	rm -f cb
+```
+
+**Step 3: Commit**
+
+```bash
+git add Makefile
+git commit -m "chore: add Makefile with build/test/lint targets"
+```
 
 ---
 
@@ -85,7 +161,7 @@ var rootCmd = &cobra.Command{
 	Short: "ClawdBay - A harbor for your Claude sessions",
 	Long: `ClawdBay manages multi-session Claude Code workflows.
 
-Start workflows from Jira tickets, manage multiple Claude sessions
+Start workflows with git worktrees, manage multiple Claude sessions
 per worktree, and track session status from an interactive dashboard.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		// Default to dashboard when no subcommand
@@ -171,6 +247,11 @@ Expected: `ClawdBay v0.1.0`
 ```bash
 git add cmd/version.go
 git commit -m "feat: add version command"
+```
+
+**Phase 1 Checkpoint:**
+```bash
+make verify  # Must pass before continuing
 ```
 
 ---
@@ -330,6 +411,11 @@ Expected: PASS
 ```bash
 git add internal/config/
 git commit -m "feat: add EnsureDirs to create config directories"
+```
+
+**Phase 2 Checkpoint:**
+```bash
+make verify  # Must pass before continuing
 ```
 
 ---
@@ -529,15 +615,30 @@ git commit -m "feat: add tmux client with ListSessions"
 - Modify: `internal/tmux/tmux.go`
 - Modify: `internal/tmux/tmux_test.go`
 
-**Step 1: Write test for window parsing with status**
+**Step 1: Add Status type and detection**
+
+Add to `internal/tmux/tmux.go`:
+
+```go
+type Status string
+
+const (
+	StatusIdle    Status = "IDLE"
+	StatusWorking Status = "WORKING"
+	StatusDone    Status = "DONE"
+)
+```
+
+**Step 2: Write test for window parsing with status**
 
 Add to `internal/tmux/tmux_test.go`:
 
 ```go
 func TestParseWindowList(t *testing.T) {
-	output := `0: shell (1 panes) [active]
-1: claude:default (1 panes)
-2: claude:research (1 panes)`
+	// Format from: tmux list-windows -F "#{window_index}:#{window_name}:#{window_active}"
+	output := `0:shell:1
+1:claude:default:0
+2:claude:research:0`
 
 	windows := ParseWindowList(output)
 
@@ -545,6 +646,12 @@ func TestParseWindowList(t *testing.T) {
 		t.Fatalf("got %d windows, want 3", len(windows))
 	}
 
+	if windows[0].Name != "shell" {
+		t.Errorf("window 0 name = %q, want %q", windows[0].Name, "shell")
+	}
+	if !windows[0].Active {
+		t.Error("window 0 should be active")
+	}
 	if windows[1].Name != "claude:default" {
 		t.Errorf("window 1 name = %q, want %q", windows[1].Name, "claude:default")
 	}
@@ -590,6 +697,9 @@ func (w *Window) IsClaudeSession() bool {
 	return strings.HasPrefix(w.Name, "claude:")
 }
 
+// ParseWindowList parses output from:
+// tmux list-windows -F "#{window_index}:#{window_name}:#{window_active}"
+// Format: "0:shell:1" or "1:claude:default:0"
 func ParseWindowList(output string) []Window {
 	var windows []Window
 	lines := strings.Split(strings.TrimSpace(output), "\n")
@@ -598,25 +708,32 @@ func ParseWindowList(output string) []Window {
 		if line == "" {
 			continue
 		}
-		// Parse: "0: shell (1 panes) [active]"
-		parts := strings.SplitN(line, ":", 2)
-		if len(parts) < 2 {
+
+		// Split from the end to handle window names with colons (like "claude:default")
+		// Format: index:name:active where active is 0 or 1
+		lastColon := strings.LastIndex(line, ":")
+		if lastColon == -1 {
 			continue
 		}
 
+		activeStr := line[lastColon+1:]
+		rest := line[:lastColon]
+
+		firstColon := strings.Index(rest, ":")
+		if firstColon == -1 {
+			continue
+		}
+
+		idxStr := rest[:firstColon]
+		name := rest[firstColon+1:]
+
 		idx := 0
-		fmt.Sscanf(parts[0], "%d", &idx)
-
-		rest := strings.TrimSpace(parts[1])
-		nameParts := strings.Split(rest, " (")
-		name := nameParts[0]
-
-		active := strings.Contains(line, "[active]")
+		fmt.Sscanf(idxStr, "%d", &idx)
 
 		windows = append(windows, Window{
 			Index:  idx,
 			Name:   name,
-			Active: active,
+			Active: activeStr == "1",
 		})
 	}
 
@@ -631,7 +748,47 @@ Also add `"fmt"` to imports.
 Run: `go test ./internal/tmux/...`
 Expected: PASS
 
-**Step 5: Commit**
+**Step 5: Add pane status detection**
+
+Add to `internal/tmux/tmux.go`:
+
+```go
+// GetPaneStatus detects if a Claude session is IDLE, WORKING, or DONE
+// by checking the pane's current command and recent activity.
+func (c *Client) GetPaneStatus(session, window string) Status {
+	// Get the current command running in the pane
+	target := session + ":" + window
+	output, err := c.execCommand("tmux", "display-message", "-t", target, "-p", "#{pane_current_command}")
+	if err != nil {
+		return StatusDone
+	}
+
+	cmd := strings.TrimSpace(string(output))
+
+	// If the pane is running a shell (zsh, bash), Claude has exited
+	if cmd == "zsh" || cmd == "bash" || cmd == "sh" {
+		return StatusDone
+	}
+
+	// Check if there's been recent activity (within last 5 seconds)
+	// Using pane_last_activity_time vs current time
+	activityOutput, err := c.execCommand("tmux", "display-message", "-t", target, "-p",
+		"#{pane_activity}:#{session_activity}")
+	if err != nil {
+		return StatusIdle
+	}
+
+	// For simplicity, assume WORKING if claude is running
+	// A more sophisticated check would compare timestamps
+	if cmd == "claude" || strings.Contains(cmd, "claude") {
+		return StatusIdle // Default to IDLE, TUI will show this
+	}
+
+	return StatusDone
+}
+```
+
+**Step 6: Commit**
 
 ```bash
 git add internal/tmux/
@@ -725,196 +882,19 @@ git add internal/tmux/
 git commit -m "feat: add session and window creation"
 ```
 
----
-
-## Phase 4: Jira Integration
-
-### Task 10: Create Jira Package
-
-**Files:**
-- Create: `internal/jira/jira.go`
-- Create: `internal/jira/jira_test.go`
-
-**Step 1: Write test for parsing jira output**
-
-Create `internal/jira/jira_test.go`:
-
-```go
-package jira
-
-import (
-	"testing"
-)
-
-func TestParseIssue(t *testing.T) {
-	// Simulated jira-cli output
-	output := `PROJ-123
-Add user authentication
-This is the description of the ticket.
-It can span multiple lines.`
-
-	issue, err := ParseIssue(output)
-	if err != nil {
-		t.Fatalf("ParseIssue() error = %v", err)
-	}
-
-	if issue.Key != "PROJ-123" {
-		t.Errorf("Key = %q, want %q", issue.Key, "PROJ-123")
-	}
-	if issue.Summary != "Add user authentication" {
-		t.Errorf("Summary = %q, want %q", issue.Summary, "Add user authentication")
-	}
-}
-```
-
-**Step 2: Run test to verify it fails**
-
-Run: `go test ./internal/jira/...`
-Expected: FAIL - package doesn't exist
-
-**Step 3: Write implementation**
-
-Create `internal/jira/jira.go`:
-
-```go
-package jira
-
-import (
-	"fmt"
-	"strings"
-)
-
-type Issue struct {
-	Key         string
-	Summary     string
-	Description string
-}
-
-func ParseIssue(output string) (*Issue, error) {
-	lines := strings.Split(strings.TrimSpace(output), "\n")
-	if len(lines) < 2 {
-		return nil, fmt.Errorf("invalid jira output: expected at least 2 lines")
-	}
-
-	issue := &Issue{
-		Key:     strings.TrimSpace(lines[0]),
-		Summary: strings.TrimSpace(lines[1]),
-	}
-
-	if len(lines) > 2 {
-		issue.Description = strings.TrimSpace(strings.Join(lines[2:], "\n"))
-	}
-
-	return issue, nil
-}
-```
-
-**Step 4: Run test to verify it passes**
-
-Run: `go test ./internal/jira/...`
-Expected: PASS
-
-**Step 5: Commit**
-
+**Phase 3 Checkpoint:**
 ```bash
-git add internal/jira/
-git commit -m "feat: add jira package with issue parsing"
+make verify  # Must pass before continuing
 ```
 
 ---
 
-### Task 11: Add Jira Client
+## Phase 4: Core Commands
 
-**Files:**
-- Modify: `internal/jira/jira.go`
-- Modify: `internal/jira/jira_test.go`
-
-**Step 1: Write test for FetchIssue**
-
-Add to `internal/jira/jira_test.go`:
-
-```go
-func TestClient_FetchIssue(t *testing.T) {
-	client := &Client{
-		execCommand: func(name string, args ...string) ([]byte, error) {
-			// Verify correct command structure
-			if name != "jira" {
-				t.Errorf("command = %q, want %q", name, "jira")
-			}
-			return []byte("PROJ-123\nTest Summary\nTest description"), nil
-		},
-	}
-
-	issue, err := client.FetchIssue("PROJ-123")
-	if err != nil {
-		t.Fatalf("FetchIssue() error = %v", err)
-	}
-
-	if issue.Key != "PROJ-123" {
-		t.Errorf("Key = %q, want %q", issue.Key, "PROJ-123")
-	}
-}
-```
-
-**Step 2: Run test to verify it fails**
-
-Run: `go test ./internal/jira/...`
-Expected: FAIL - Client not defined
-
-**Step 3: Write implementation**
-
-Add to `internal/jira/jira.go`:
-
-```go
-import (
-	"fmt"
-	"os/exec"
-	"strings"
-)
-
-type Client struct {
-	execCommand func(name string, args ...string) ([]byte, error)
-}
-
-func NewClient() *Client {
-	return &Client{
-		execCommand: func(name string, args ...string) ([]byte, error) {
-			return exec.Command(name, args...).Output()
-		},
-	}
-}
-
-func (c *Client) FetchIssue(key string) (*Issue, error) {
-	// jira issue view PROJ-123 --plain --comments 0
-	output, err := c.execCommand("jira", "issue", "view", key, "--plain", "--comments", "0")
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch issue %s: %w", key, err)
-	}
-	return ParseIssue(string(output))
-}
-```
-
-**Step 4: Run test to verify it passes**
-
-Run: `go test ./internal/jira/...`
-Expected: PASS
-
-**Step 5: Commit**
-
-```bash
-git add internal/jira/
-git commit -m "feat: add jira client with FetchIssue"
-```
-
----
-
-## Phase 5: Core Commands
-
-### Task 12: Add `cb start` Command
+### Task 10: Add `cb start` Command
 
 **Files:**
 - Create: `cmd/start.go`
-- Modify: `internal/tmux/tmux.go`
 
 **Step 1: Create start command**
 
@@ -930,66 +910,67 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/rsanzone/clawdbay/internal/jira"
 	"github.com/rsanzone/clawdbay/internal/tmux"
 	"github.com/spf13/cobra"
 )
 
-var startTitle string
-
 var startCmd = &cobra.Command{
-	Use:   "start <ticket-id>",
-	Short: "Start a new workflow from a Jira ticket",
-	Long: `Creates a git worktree and tmux session for the ticket.
+	Use:   "start <branch-name>",
+	Short: "Start a new workflow with a git worktree and tmux session",
+	Long: `Creates a git worktree and tmux session for the given branch name.
 
 Example:
-  cb start PROJ-123
-  cb start PROJ-123 --title "auth feature"`,
+  cb start proj-123-auth-feature
+  cb start feature/add-login`,
 	Args: cobra.ExactArgs(1),
 	RunE: runStart,
 }
 
 func init() {
-	startCmd.Flags().StringVarP(&startTitle, "title", "t", "", "Short description for branch name")
 	rootCmd.AddCommand(startCmd)
 }
 
 func runStart(cmd *cobra.Command, args []string) error {
-	ticketID := args[0]
+	branchName := sanitizeBranchName(args[0])
 
-	// Fetch Jira info if no title provided
-	title := startTitle
-	if title == "" {
-		jiraClient := jira.NewClient()
-		issue, err := jiraClient.FetchIssue(ticketID)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Warning: could not fetch Jira issue: %v\n", err)
-			title = "work"
-		} else {
-			// Use first few words of summary
-			words := strings.Fields(issue.Summary)
-			if len(words) > 4 {
-				words = words[:4]
-			}
-			title = strings.Join(words, "-")
-		}
+	// Verify we're in a git repository
+	if _, err := exec.Command("git", "rev-parse", "--git-dir").Output(); err != nil {
+		return fmt.Errorf("not in a git repository")
 	}
 
-	// Create branch name
-	branchName := strings.ToLower(ticketID + "-" + strings.ReplaceAll(title, " ", "-"))
-
 	// Get current directory info
-	cwd, _ := os.Getwd()
+	cwd, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("failed to get current directory: %w", err)
+	}
 	projectName := filepath.Base(cwd)
 	worktreeDir := filepath.Join(filepath.Dir(cwd), projectName+"-"+branchName)
 
-	// Create worktree
-	fmt.Printf("Creating worktree: %s\n", worktreeDir)
-	gitCmd := exec.Command("git", "worktree", "add", worktreeDir, "-b", branchName)
-	gitCmd.Stdout = os.Stdout
-	gitCmd.Stderr = os.Stderr
-	if err := gitCmd.Run(); err != nil {
-		return fmt.Errorf("failed to create worktree: %w", err)
+	// Check if worktree directory already exists
+	if _, err := os.Stat(worktreeDir); err == nil {
+		return fmt.Errorf("worktree directory already exists: %s", worktreeDir)
+	}
+
+	// Check if branch already exists
+	checkBranch := exec.Command("git", "rev-parse", "--verify", branchName)
+	if checkBranch.Run() == nil {
+		// Branch exists, create worktree without -b flag
+		fmt.Printf("Branch %s exists, creating worktree...\n", branchName)
+		gitCmd := exec.Command("git", "worktree", "add", worktreeDir, branchName)
+		gitCmd.Stdout = os.Stdout
+		gitCmd.Stderr = os.Stderr
+		if err := gitCmd.Run(); err != nil {
+			return fmt.Errorf("failed to create worktree: %w", err)
+		}
+	} else {
+		// Create new branch and worktree
+		fmt.Printf("Creating worktree: %s\n", worktreeDir)
+		gitCmd := exec.Command("git", "worktree", "add", worktreeDir, "-b", branchName)
+		gitCmd.Stdout = os.Stdout
+		gitCmd.Stderr = os.Stderr
+		if err := gitCmd.Run(); err != nil {
+			return fmt.Errorf("failed to create worktree: %w", err)
+		}
 	}
 
 	// Create tmux session
@@ -1007,12 +988,35 @@ func runStart(cmd *cobra.Command, args []string) error {
 	}
 	return tmuxClient.AttachSession(sessionName)
 }
+
+// sanitizeBranchName converts a string to a valid git branch name
+func sanitizeBranchName(name string) string {
+	// Replace spaces and special chars with dashes
+	name = strings.ToLower(name)
+	name = strings.ReplaceAll(name, " ", "-")
+
+	// Remove characters not allowed in branch names
+	var result strings.Builder
+	for _, r := range name {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '-' || r == '_' {
+			result.WriteRune(r)
+		}
+	}
+
+	// Clean up multiple dashes
+	cleaned := result.String()
+	for strings.Contains(cleaned, "--") {
+		cleaned = strings.ReplaceAll(cleaned, "--", "-")
+	}
+
+	return strings.Trim(cleaned, "-")
+}
 ```
 
 **Step 2: Verify command shows in help**
 
 Run: `go run main.go start --help`
-Expected: Shows start command help with --title flag
+Expected: Shows start command help
 
 **Step 3: Commit**
 
@@ -1023,7 +1027,7 @@ git commit -m "feat: add cb start command"
 
 ---
 
-### Task 13: Add `cb claude` Command
+### Task 11: Add `cb claude` Command
 
 **Files:**
 - Create: `cmd/claude.go`
@@ -1070,23 +1074,42 @@ func init() {
 }
 
 func runClaude(cmd *cobra.Command, args []string) error {
-	// Determine current session from TMUX env or cwd
-	cwd, _ := os.Getwd()
-
-	// Find the cb: session for this worktree
-	tmuxClient := tmux.NewClient()
-	sessions, err := tmuxClient.ListSessions()
+	cwd, err := os.Getwd()
 	if err != nil {
-		return fmt.Errorf("failed to list sessions: %w", err)
+		return fmt.Errorf("failed to get current directory: %w", err)
 	}
 
-	// Find matching session (simplified: use directory name)
-	dirName := filepath.Base(cwd)
+	tmuxClient := tmux.NewClient()
+
+	// First, try to get current session from TMUX environment
 	var sessionName string
-	for _, s := range sessions {
-		if strings.Contains(s.Name, dirName) {
-			sessionName = s.Name
-			break
+	if tmuxEnv := os.Getenv("TMUX"); tmuxEnv != "" {
+		// We're inside tmux, get current session name
+		output, err := exec.Command("tmux", "display-message", "-p", "#{session_name}").Output()
+		if err == nil {
+			currentSession := strings.TrimSpace(string(output))
+			if strings.HasPrefix(currentSession, "cb:") {
+				sessionName = currentSession
+			}
+		}
+	}
+
+	// If not in a cb: session, try to find one matching this directory
+	if sessionName == "" {
+		sessions, err := tmuxClient.ListSessions()
+		if err != nil {
+			return fmt.Errorf("failed to list sessions: %w", err)
+		}
+
+		// Worktree paths follow: <project>-<ticket>-<title>
+		// Session names follow: cb:<ticket>-<title>
+		dirName := filepath.Base(cwd)
+		for _, s := range sessions {
+			sessionSuffix := strings.TrimPrefix(s.Name, "cb:")
+			if strings.Contains(dirName, sessionSuffix) {
+				sessionName = s.Name
+				break
+			}
 		}
 	}
 
@@ -1137,7 +1160,7 @@ git commit -m "feat: add cb claude command"
 
 ---
 
-### Task 14: Add `cb prompt` Commands
+### Task 12: Add `cb prompt` Commands
 
 **Files:**
 - Create: `cmd/prompt.go`
@@ -1368,7 +1391,7 @@ git commit -m "feat: add cb prompt commands (list, add, run)"
 
 ---
 
-### Task 15: Add `cb list` Command
+### Task 13: Add `cb list` Command
 
 **Files:**
 - Create: `cmd/list.go`
@@ -1429,7 +1452,7 @@ git commit -m "feat: add cb list command"
 
 ---
 
-### Task 16: Add `cb archive` Command
+### Task 14: Add `cb archive` Command
 
 **Files:**
 - Create: `cmd/archive.go`
@@ -1446,8 +1469,10 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 
+	"github.com/rsanzone/clawdbay/internal/tmux"
 	"github.com/spf13/cobra"
 )
 
@@ -1456,22 +1481,52 @@ var archiveCmd = &cobra.Command{
 	Short: "Archive workflow (kill session + remove worktree, keep branch)",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		var sessionName string
+		var worktreePath string
 
 		if len(args) > 0 {
 			sessionName = args[0]
+			if !strings.HasPrefix(sessionName, "cb:") {
+				sessionName = "cb:" + sessionName
+			}
 		} else {
-			// Try to detect from current directory
-			cwd, _ := os.Getwd()
-			// Extract session name from worktree path
-			sessionName = "cb:" + strings.TrimPrefix(cwd, os.Getenv("HOME"))
-		}
+			// Detect session from current directory
+			// Worktree paths follow pattern: <project>-<ticket>-<title>
+			// Session names follow pattern: cb:<ticket>-<title>
+			cwd, err := os.Getwd()
+			if err != nil {
+				return fmt.Errorf("failed to get current directory: %w", err)
+			}
+			worktreePath = cwd
 
-		if !strings.HasPrefix(sessionName, "cb:") {
-			sessionName = "cb:" + sessionName
+			// Try to find matching session by checking all cb: sessions
+			tmuxClient := tmux.NewClient()
+			sessions, err := tmuxClient.ListSessions()
+			if err != nil {
+				return fmt.Errorf("failed to list sessions: %w", err)
+			}
+
+			dirName := filepath.Base(cwd)
+			for _, s := range sessions {
+				// Session name is cb:<ticket>-<title>
+				// Dir name is <project>-<ticket>-<title>
+				// Match by checking if dir contains the session suffix
+				sessionSuffix := strings.TrimPrefix(s.Name, "cb:")
+				if strings.Contains(dirName, sessionSuffix) {
+					sessionName = s.Name
+					break
+				}
+			}
+
+			if sessionName == "" {
+				return fmt.Errorf("no cb: session found for directory %s", dirName)
+			}
 		}
 
 		// Confirm
 		fmt.Printf("Archive workflow: %s\n", sessionName)
+		if worktreePath != "" {
+			fmt.Printf("Worktree: %s\n", worktreePath)
+		}
 		fmt.Print("This will kill the tmux session and remove the worktree. Continue? [y/N] ")
 
 		reader := bufio.NewReader(os.Stdin)
@@ -1488,19 +1543,22 @@ var archiveCmd = &cobra.Command{
 		killCmd := exec.Command("tmux", "kill-session", "-t", sessionName)
 		killCmd.Run() // Ignore error if session doesn't exist
 
-		// Get worktree path and remove
-		// For now, assume worktree is in sibling directory
-		cwd, _ := os.Getwd()
-		fmt.Printf("Removing worktree: %s\n", cwd)
+		// Remove worktree if we detected it
+		if worktreePath != "" {
+			fmt.Printf("Removing worktree: %s\n", worktreePath)
 
-		// Change to parent before removing
-		os.Chdir("..")
+			// Change to parent before removing
+			parentDir := filepath.Dir(worktreePath)
+			if err := os.Chdir(parentDir); err != nil {
+				return fmt.Errorf("failed to change to parent directory: %w", err)
+			}
 
-		removeCmd := exec.Command("git", "worktree", "remove", cwd)
-		removeCmd.Stdout = os.Stdout
-		removeCmd.Stderr = os.Stderr
-		if err := removeCmd.Run(); err != nil {
-			return fmt.Errorf("failed to remove worktree: %w", err)
+			removeCmd := exec.Command("git", "worktree", "remove", worktreePath)
+			removeCmd.Stdout = os.Stdout
+			removeCmd.Stderr = os.Stderr
+			if err := removeCmd.Run(); err != nil {
+				return fmt.Errorf("failed to remove worktree: %w", err)
+			}
 		}
 
 		fmt.Println("Workflow archived. Branch preserved.")
@@ -1525,11 +1583,16 @@ git add cmd/archive.go
 git commit -m "feat: add cb archive command"
 ```
 
+**Phase 4 Checkpoint:**
+```bash
+make verify  # Must pass before continuing
+```
+
 ---
 
-## Phase 6: TUI Dashboard
+## Phase 5: TUI Dashboard
 
-### Task 17: Add Bubbletea Dependencies
+### Task 15: Add Bubbletea Dependencies
 
 **Files:**
 - Modify: `go.mod`
@@ -1551,7 +1614,7 @@ git commit -m "feat: add Bubbletea TUI dependencies"
 
 ---
 
-### Task 18: Create Dashboard Model
+### Task 16: Create Dashboard Model
 
 **Files:**
 - Create: `internal/tui/model.go`
@@ -1588,7 +1651,8 @@ func TestModel_GroupSessionsByWorktree(t *testing.T) {
 		},
 	}
 
-	groups := GroupByWorktree(sessions, windows)
+	// Pass nil for tmuxClient in tests (status detection skipped)
+	groups := GroupByWorktree(sessions, windows, nil)
 
 	if len(groups) != 2 {
 		t.Fatalf("got %d groups, want 2", len(groups))
@@ -1638,7 +1702,9 @@ type Model struct {
 	Quitting bool
 }
 
-func GroupByWorktree(sessions []tmux.Session, windows map[string][]tmux.Window) []WorktreeGroup {
+// GroupByWorktree groups sessions and their Claude windows.
+// The tmuxClient parameter is used to detect window status.
+func GroupByWorktree(sessions []tmux.Session, windows map[string][]tmux.Window, tmuxClient *tmux.Client) []WorktreeGroup {
 	var groups []WorktreeGroup
 
 	for _, session := range sessions {
@@ -1647,9 +1713,13 @@ func GroupByWorktree(sessions []tmux.Session, windows map[string][]tmux.Window) 
 		var claudeSessions []ClaudeSession
 		for _, w := range wins {
 			if strings.HasPrefix(w.Name, "claude:") {
+				status := string(tmux.StatusIdle)
+				if tmuxClient != nil {
+					status = string(tmuxClient.GetPaneStatus(session.Name, w.Name))
+				}
 				claudeSessions = append(claudeSessions, ClaudeSession{
 					Name:   w.Name,
-					Status: "IDLE", // Default, would be detected from tmux
+					Status: status,
 				})
 			}
 		}
@@ -1687,7 +1757,7 @@ git commit -m "feat: add TUI model with worktree grouping"
 
 ---
 
-### Task 19: Implement Bubbletea Update/View
+### Task 17: Implement Bubbletea Update/View
 
 **Files:**
 - Modify: `internal/tui/model.go`
@@ -1849,7 +1919,7 @@ git commit -m "feat: implement Bubbletea Update and View"
 
 ---
 
-### Task 20: Add `cb dash` Command
+### Task 18: Add `cb dash` Command
 
 **Files:**
 - Create: `cmd/dash.go`
@@ -1893,7 +1963,7 @@ var dashCmd = &cobra.Command{
 
 		// Build model
 		model := tui.InitialModel()
-		model.Groups = tui.GroupByWorktree(sessions, windows)
+		model.Groups = tui.GroupByWorktree(sessions, windows, tmuxClient)
 
 		// Run TUI
 		p := tea.NewProgram(model)
@@ -1926,7 +1996,7 @@ Add to `internal/tmux/tmux.go`:
 
 ```go
 func (c *Client) ListWindows(session string) ([]Window, error) {
-	output, err := c.execCommand("tmux", "list-windows", "-t", session, "-F", "#{window_index}: #{window_name} (#{window_panes} panes)")
+	output, err := c.execCommand("tmux", "list-windows", "-t", session, "-F", "#{window_index}:#{window_name}:#{window_active}")
 	if err != nil {
 		return nil, err
 	}
@@ -1957,11 +2027,16 @@ git add cmd/dash.go cmd/root.go internal/tmux/tmux.go
 git commit -m "feat: add cb dash command with TUI"
 ```
 
+**Phase 5 Checkpoint:**
+```bash
+make verify  # Must pass before continuing
+```
+
 ---
 
-## Phase 7: Polish and Testing
+## Phase 6: Polish and Testing
 
-### Task 21: Add Integration Test
+### Task 19: Add Integration Test
 
 **Files:**
 - Create: `integration_test.go`
@@ -2023,7 +2098,7 @@ git commit -m "test: add CLI integration tests"
 
 ---
 
-### Task 22: Create Default Prompt Templates
+### Task 20: Create Default Prompt Templates
 
 **Files:**
 - Create: `templates/prompts/research.md`
@@ -2031,22 +2106,24 @@ git commit -m "test: add CLI integration tests"
 - Create: `templates/prompts/implement.md`
 - Create: `templates/prompts/verify.md`
 
+**Note:** Templates are plain markdown - users copy and customize them per-worktree. No variable substitution needed.
+
 **Step 1: Create research template**
 
 Create `templates/prompts/research.md`:
 
 ```markdown
-# Research: {{ticket}}
+# Research
 
 ## Context
 
-{{description}}
+<!-- Add ticket ID and description here -->
 
 ## Instructions
 
 1. Explore the codebase to understand the current implementation
 2. Identify key files, components, and patterns involved
-3. Document your findings in `docs/plans/YYYY-MM-DD-{{topic}}-research.md`
+3. Document your findings in `docs/plans/YYYY-MM-DD-<topic>-research.md`
 
 ## Output
 
@@ -2065,11 +2142,11 @@ Use the brainstorming skill if available for structured exploration.
 Create `templates/prompts/plan.md`:
 
 ```markdown
-# Implementation Plan: {{ticket}}
+# Implementation Plan
 
 ## Context
 
-{{description}}
+<!-- Add ticket ID and description here -->
 
 ## Research
 
@@ -2084,7 +2161,7 @@ Create a detailed implementation plan following TDD principles:
 3. Include exact file paths and code snippets
 4. Document expected test commands and outputs
 
-Save plan to: `docs/plans/YYYY-MM-DD-{{topic}}-implementation.md`
+Save plan to: `docs/plans/YYYY-MM-DD-<topic>-implementation.md`
 
 Use the writing-plans skill format if available.
 ```
@@ -2094,7 +2171,7 @@ Use the writing-plans skill format if available.
 Create `templates/prompts/implement.md`:
 
 ```markdown
-# Implementation: {{ticket}}
+# Implementation
 
 ## Plan
 
@@ -2126,7 +2203,7 @@ Stop and verify at:
 Create `templates/prompts/verify.md`:
 
 ```markdown
-# Verification: {{ticket}}
+# Verification
 
 ## Checklist
 
@@ -2164,12 +2241,32 @@ git commit -m "feat: add default prompt templates"
 
 ---
 
-### Task 23: Add Install Command for Templates
+### Task 21: Add Install Command for Templates
 
 **Files:**
+- Create: `templates/prompts/research.md` (from Task 22)
+- Create: `templates/prompts/plan.md` (from Task 22)
+- Create: `templates/prompts/implement.md` (from Task 22)
+- Create: `templates/prompts/verify.md` (from Task 22)
+- Create: `templates/embed.go`
 - Create: `cmd/init.go`
 
-**Step 1: Create init command**
+**Note:** embed.FS paths are relative to the Go file. We create a small package at `templates/` to hold the embed directive.
+
+**Step 1: Create templates embed package**
+
+Create `templates/embed.go`:
+
+```go
+package templates
+
+import "embed"
+
+//go:embed prompts/*.md
+var FS embed.FS
+```
+
+**Step 2: Create init command**
 
 Create `cmd/init.go`:
 
@@ -2177,18 +2274,15 @@ Create `cmd/init.go`:
 package cmd
 
 import (
-	"embed"
 	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
 
 	"github.com/rsanzone/clawdbay/internal/config"
+	"github.com/rsanzone/clawdbay/templates"
 	"github.com/spf13/cobra"
 )
-
-//go:embed templates/prompts/*.md
-var templateFS embed.FS
 
 var initCmd = &cobra.Command{
 	Use:   "init",
@@ -2203,12 +2297,12 @@ var initCmd = &cobra.Command{
 		fmt.Printf("Created: %s\n", cfg.ConfigDir)
 
 		// Copy templates
-		err := fs.WalkDir(templateFS, "templates/prompts", func(path string, d fs.DirEntry, err error) error {
+		err := fs.WalkDir(templates.FS, "prompts", func(path string, d fs.DirEntry, err error) error {
 			if err != nil || d.IsDir() {
 				return err
 			}
 
-			content, err := templateFS.ReadFile(path)
+			content, err := templates.FS.ReadFile(path)
 			if err != nil {
 				return err
 			}
@@ -2242,8 +2336,6 @@ func init() {
 }
 ```
 
-Note: Move templates folder to be alongside cmd folder, and update embed path.
-
 **Step 2: Verify init command**
 
 Run: `go run main.go init`
@@ -2258,7 +2350,7 @@ git commit -m "feat: add cb init command to install templates"
 
 ---
 
-### Task 24: Final Build and Test
+### Task 22: Final Build and Test
 
 **Step 1: Run all tests**
 
@@ -2291,7 +2383,7 @@ git add -A
 git commit -m "feat: ClawdBay v0.1.0 complete
 
 Multi-session Claude workflow manager with:
-- cb start: Create worktree + session from Jira ticket
+- cb start: Create worktree + tmux session
 - cb claude: Add Claude sessions to worktree
 - cb prompt: Manage and execute prompt templates
 - cb dash: Interactive TUI dashboard
@@ -2304,20 +2396,22 @@ Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>"
 
 ## Summary
 
-**Total tasks:** 24
-**Estimated time:** 2-3 hours
+**Total tasks:** 23 (Task 0 through Task 22)
+**Phases:** 7 (Phase 0 through Phase 6)
 
 **Key deliverables:**
 1. `cb` CLI with commands: start, claude, prompt, list, archive, dash, init, version
-2. tmux integration for session management
-3. Jira integration for ticket info
-4. Bubbletea TUI dashboard
-5. Default prompt templates
+2. tmux integration for session management with status detection
+3. Bubbletea TUI dashboard
+4. Default prompt templates (plain markdown, no variable substitution)
 
 **Testing approach:** TDD throughout - every feature has tests before implementation.
 
+**Verification:** `make verify` checkpoint at end of each phase.
+
 **Next steps after implementation:**
 1. Add tmux keybinding for `cb dash`
-2. Add idle/working status detection
+2. Improve status detection with timestamp-based activity checks
 3. Create additional prompt templates
 4. Consider adding session coordination features
+5. Optional: Add jira-cli integration as a plugin/extension
