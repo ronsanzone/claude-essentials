@@ -8,8 +8,7 @@ import (
 
 // Config holds ClawdBay configuration paths.
 type Config struct {
-	ConfigDir  string
-	PromptsDir string
+	ConfigDir string
 }
 
 // New creates a Config with default paths.
@@ -21,18 +20,14 @@ func New() (*Config, error) {
 	configDir := filepath.Join(home, ".config", "cb")
 
 	return &Config{
-		ConfigDir:  configDir,
-		PromptsDir: filepath.Join(configDir, "prompts"),
+		ConfigDir: configDir,
 	}, nil
 }
 
-// EnsureDirs creates the config and prompts directories if they don't exist.
+// EnsureDirs creates the config directory if it doesn't exist.
 func (c *Config) EnsureDirs() error {
 	if err := os.MkdirAll(c.ConfigDir, 0755); err != nil {
 		return fmt.Errorf("failed to create config directory: %w", err)
-	}
-	if err := os.MkdirAll(c.PromptsDir, 0755); err != nil {
-		return fmt.Errorf("failed to create prompts directory: %w", err)
 	}
 	return nil
 }
