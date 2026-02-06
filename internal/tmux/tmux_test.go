@@ -112,27 +112,165 @@ func TestWindow_IsClaudeSession(t *testing.T) {
 
 func TestClient_GetPaneStatus(t *testing.T) {
 	tests := []struct {
-		name     string
-		output   string
-		err      error
-		expected Status
+		name        string
+		cmdOutput   string
+		cmdErr      error
+		paneContent string
+		expected    Status
 	}{
-		{"claude running", "claude", nil, StatusIdle},
-		{"shell running", "zsh", nil, StatusDone},
-		{"bash running", "bash", nil, StatusDone},
-		{"error", "", errors.New("error"), StatusDone},
+		// WORKING states
+		{"claude working with spinner", "claude", nil, "⠹ Thinking...\n", StatusWorking},
+		{"claude working with braille", "claude", nil, "⠋ Reading file\n", StatusWorking},
+		{"claude working with interrupt", "claude", nil, "Some output\nctrl+c to interrupt\n", StatusWorking},
+		{"claude working with esc interrupt", "claude", nil, "Output\nesc to interrupt\n", StatusWorking},
+		{"claude working with asterisk", "claude", nil, "✳ Generating...\n", StatusWorking},
+		// WAITING states
+		{"claude waiting permission", "claude", nil, "Yes, allow once\nNo, deny\n", StatusWaiting},
+		{"claude waiting prompt", "claude", nil, "Some output\n> ", StatusWaiting},
+		{"claude waiting chevron", "claude", nil, "Ready\n❯ ", StatusWaiting},
+		{"claude waiting continue", "claude", nil, "Continue? (Y/n)", StatusWaiting},
+		// IDLE state
+		{"claude idle no indicators", "claude", nil, "Just some text\nnothing special", StatusIdle},
+		// DONE states
+		{"shell running", "zsh", nil, "", StatusDone},
+		{"bash running", "bash", nil, "", StatusDone},
+		{"error", "", errors.New("error"), "", StatusDone},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			client := &Client{
 				execCommand: func(name string, args ...string) ([]byte, error) {
-					return []byte(tt.output), tt.err
+					// Route based on the tmux subcommand
+					if len(args) > 0 && args[0] == "capture-pane" {
+						return []byte(tt.paneContent), nil
+					}
+					return []byte(tt.cmdOutput), tt.cmdErr
 				},
 			}
 			status := client.GetPaneStatus("session", "window")
 			if status != tt.expected {
 				t.Errorf("GetPaneStatus() = %v, want %v", status, tt.expected)
+			}
+		})
+	}
+}
+
+func TestContainsSpinnerChars(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  bool
+	}{
+		{"braille spinner dot", "⠋ Thinking...", true},
+		{"braille spinner bar", "⠹ Reading file.go", true},
+		{"multiple braille chars", "⠸⠼⠴", true},
+		{"asterisk spinner", "✳ Generating...", true},
+		{"star spinner", "✶ Building...", true},
+		{"normal text", "Hello world", false},
+		{"empty string", "", false},
+		{"prompt only", "> ", false},
+		{"empty braille U+2800", "\u2800", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := containsSpinnerChars(tt.input)
+			if got != tt.want {
+				t.Errorf("containsSpinnerChars(%q) = %v, want %v", tt.input, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestHasBusyIndicator(t *testing.T) {
+	tests := []struct {
+		name    string
+		content string
+		want    bool
+	}{
+		// Interrupt messages
+		{"ctrl+c interrupt", "Working... ctrl+c to interrupt", true},
+		{"ctrl+c case insensitive", "CTRL+C TO INTERRUPT", true},
+		{"esc interrupt", "Processing esc to interrupt", true},
+		// Spinner characters
+		{"braille spinner", "⠹ Thinking...", true},
+		{"asterisk spinner", "✳ Generating code...", true},
+		{"star spinner", "✶ Building...", true},
+		// Negative cases
+		{"plain prompt", "> ", false},
+		{"just text", "Hello world", false},
+		{"empty", "", false},
+		{"permission prompt only", "Yes, allow once", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := hasBusyIndicator(tt.content)
+			if got != tt.want {
+				t.Errorf("hasBusyIndicator(%q) = %v, want %v", tt.content, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestHasPromptIndicator(t *testing.T) {
+	tests := []struct {
+		name    string
+		content string
+		want    bool
+	}{
+		// Permission prompts
+		{"allow once", "Yes, allow once\nNo, deny", true},
+		{"allow always", "Yes, allow always", true},
+		{"tell claude", "No, and tell Claude what to do", true},
+		// Confirmation prompts
+		{"continue prompt", "Continue? (Y/n)", true},
+		{"proceed prompt", "Proceed?", true},
+		{"yes no prompt", "[yes/no]", true},
+		// Input prompts
+		{"arrow prompt", "Some output\n> ", true},
+		{"chevron prompt", "Ready\n❯ ", true},
+		{"prompt with text before", "What next?\n> ", true},
+		// Negative cases
+		{"prompt mid-line", "prefix > suffix\nmore text", false},
+		{"working output", "ctrl+c to interrupt", false},
+		{"plain text", "Just some text", false},
+		{"empty", "", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := hasPromptIndicator(tt.content)
+			if got != tt.want {
+				t.Errorf("hasPromptIndicator(%q) = %v, want %v", tt.content, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestDetectionPriority(t *testing.T) {
+	// Verify busy takes precedence over prompt
+	tests := []struct {
+		name    string
+		content string
+		busy    bool
+		prompt  bool
+	}{
+		{"busy wins over prompt", "ctrl+c to interrupt\n> ", true, true},
+		{"prompt alone", "Yes, allow once\n> ", false, true},
+		{"neither", "Just output text", false, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotBusy := hasBusyIndicator(tt.content)
+			gotPrompt := hasPromptIndicator(tt.content)
+			if gotBusy != tt.busy {
+				t.Errorf("hasBusyIndicator() = %v, want %v", gotBusy, tt.busy)
+			}
+			if gotPrompt != tt.prompt {
+				t.Errorf("hasPromptIndicator() = %v, want %v", gotPrompt, tt.prompt)
 			}
 		})
 	}
@@ -218,6 +356,50 @@ func TestClient_CreateWindow_Error(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "failed to create window") {
 		t.Errorf("error = %q, want to contain 'failed to create window'", err)
+	}
+}
+
+func TestClient_CreateWindowWithShell(t *testing.T) {
+	var calls [][]string
+	client := &Client{
+		execCommand: func(name string, args ...string) ([]byte, error) {
+			calls = append(calls, append([]string{name}, args...))
+			return nil, nil
+		},
+	}
+
+	err := client.CreateWindowWithShell("cb_test", "claude", "claude")
+	if err != nil {
+		t.Fatalf("CreateWindowWithShell() error = %v", err)
+	}
+
+	// Should make two calls: new-window (no command), then send-keys
+	if len(calls) != 2 {
+		t.Fatalf("got %d tmux calls, want 2", len(calls))
+	}
+
+	// First call: create window without command
+	newWindowArgs := calls[0]
+	expectedNewWindow := []string{"tmux", "new-window", "-t", "cb_test", "-n", "claude"}
+	if len(newWindowArgs) != len(expectedNewWindow) {
+		t.Fatalf("new-window args = %v, want %v", newWindowArgs, expectedNewWindow)
+	}
+	for i, arg := range expectedNewWindow {
+		if newWindowArgs[i] != arg {
+			t.Errorf("new-window arg[%d] = %q, want %q", i, newWindowArgs[i], arg)
+		}
+	}
+
+	// Second call: send-keys with command
+	sendKeysArgs := calls[1]
+	expectedSendKeys := []string{"tmux", "send-keys", "-t", "cb_test:claude", "claude", "Enter"}
+	if len(sendKeysArgs) != len(expectedSendKeys) {
+		t.Fatalf("send-keys args = %v, want %v", sendKeysArgs, expectedSendKeys)
+	}
+	for i, arg := range expectedSendKeys {
+		if sendKeysArgs[i] != arg {
+			t.Errorf("send-keys arg[%d] = %q, want %q", i, sendKeysArgs[i], arg)
+		}
 	}
 }
 

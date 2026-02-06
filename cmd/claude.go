@@ -78,7 +78,7 @@ func runClaude(cmd *cobra.Command, args []string) error {
 
 	// Create window with claude
 	fmt.Printf("Creating Claude session: %s in %s\n", windowName, sessionName)
-	if err := tmuxClient.CreateWindow(sessionName, windowName, "claude"); err != nil {
+	if err := tmuxClient.CreateWindowWithShell(sessionName, windowName, "claude"); err != nil {
 		return fmt.Errorf("failed to create Claude window: %w", err)
 	}
 

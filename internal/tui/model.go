@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"fmt"
 	"strings"
 	"time"
 
@@ -17,6 +18,11 @@ type tickMsg time.Time
 type refreshMsg struct {
 	Groups         []RepoGroup
 	WindowStatuses map[string]tmux.Status
+}
+
+// claudeWindowMsg is sent after attempting to create a Claude window.
+type claudeWindowMsg struct {
+	Err error
 }
 
 // NodeType represents what kind of tree node the cursor is on.
@@ -68,20 +74,27 @@ type Model struct {
 	Width          int
 	Height         int
 	ScrollOffset   int
-	Styles         Styles
+	Styles    Styles
+	StatusMsg string // transient feedback message shown in status bar
 }
 
 // RollupStatus returns the most active status from a slice.
-// Priority: WORKING > IDLE > DONE
+// Priority: WORKING > WAITING > IDLE > DONE
 func RollupStatus(statuses []tmux.Status) tmux.Status {
+	hasWaiting := false
 	hasIdle := false
 	for _, s := range statuses {
-		if s == tmux.StatusWorking {
+		switch s {
+		case tmux.StatusWorking:
 			return tmux.StatusWorking
-		}
-		if s == tmux.StatusIdle {
+		case tmux.StatusWaiting:
+			hasWaiting = true
+		case tmux.StatusIdle:
 			hasIdle = true
 		}
+	}
+	if hasWaiting {
+		return tmux.StatusWaiting
 	}
 	if hasIdle {
 		return tmux.StatusIdle
@@ -90,13 +103,15 @@ func RollupStatus(statuses []tmux.Status) tmux.Status {
 }
 
 // SessionCounts returns total sessions and counts by status.
-func (m Model) SessionCounts() (total, working, idle int) {
+func (m Model) SessionCounts() (total, working, waiting, idle int) {
 	for _, g := range m.Groups {
 		for _, s := range g.Sessions {
 			total++
 			switch s.Status {
 			case tmux.StatusWorking:
 				working++
+			case tmux.StatusWaiting:
+				waiting++
 			case tmux.StatusIdle:
 				idle++
 			}
@@ -324,7 +339,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.adjustScroll()
 		return m, nil
 
+	case claudeWindowMsg:
+		if msg.Err != nil {
+			m.StatusMsg = fmt.Sprintf("Error: %v", msg.Err)
+		} else {
+			m.StatusMsg = "Claude window created"
+		}
+		return m, m.refreshCmd()
+
 	case tickMsg:
+		m.StatusMsg = "" // clear transient messages on tick
 		return m, tea.Batch(m.refreshCmd(), m.tickCmd())
 
 	case tea.WindowSizeMsg:
@@ -353,6 +377,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m.handleExpand()
 		case "h", "left":
 			return m.handleCollapse()
+		case "c":
+			return m.handleAddClaude()
 		case "r":
 			return m, m.refreshCmd()
 		}
@@ -451,4 +477,44 @@ func (m Model) handleCollapse() (tea.Model, tea.Cmd) {
 		m.adjustScroll()
 	}
 	return m, nil
+}
+
+// handleAddClaude creates a new Claude window in the session under the cursor.
+// Works when the cursor is on a session or window node.
+func (m Model) handleAddClaude() (tea.Model, tea.Cmd) {
+	if m.Cursor >= len(m.Nodes) {
+		return m, nil
+	}
+	node := m.Nodes[m.Cursor]
+
+	var sessionName string
+	switch node.Type {
+	case NodeSession:
+		sessionName = m.Groups[node.RepoIndex].Sessions[node.SessionIndex].Name
+	case NodeWindow:
+		sessionName = m.Groups[node.RepoIndex].Sessions[node.SessionIndex].Name
+	default:
+		return m, nil
+	}
+
+	// Count existing claude windows to generate a unique name
+	session := m.Groups[node.RepoIndex].Sessions[node.SessionIndex]
+	claudeCount := 0
+	for _, w := range session.Windows {
+		if strings.HasPrefix(w.Name, "claude") {
+			claudeCount++
+		}
+	}
+
+	windowName := "claude"
+	if claudeCount > 0 {
+		windowName = fmt.Sprintf("claude:%d", claudeCount+1)
+	}
+
+	m.StatusMsg = fmt.Sprintf("Creating %s in %s...", windowName, sessionName)
+	client := m.TmuxClient
+	return m, func() tea.Msg {
+		err := client.CreateWindowWithShell(sessionName, windowName, "claude")
+		return claudeWindowMsg{Err: err}
+	}
 }

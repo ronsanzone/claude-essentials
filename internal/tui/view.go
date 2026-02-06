@@ -155,22 +155,23 @@ func (m Model) rightAlign(left, right string) string {
 }
 
 // renderStatusBadge renders a colored status badge.
+// Badge symbols show activity level: ● (working) > ◉ (waiting) > ○ (idle) > ◌ (done)
 func (m Model) renderStatusBadge(status tmux.Status) string {
 	switch status {
 	case tmux.StatusWorking:
 		return m.Styles.StatusWorking.Render("● WORKING")
+	case tmux.StatusWaiting:
+		return m.Styles.StatusWaiting.Render("◉ WAITING")
 	case tmux.StatusIdle:
 		return m.Styles.StatusIdle.Render("○ IDLE")
-	case tmux.StatusDone:
-		return m.Styles.StatusDone.Render("◌ DONE")
-	default:
+	default: // StatusDone
 		return m.Styles.StatusDone.Render("◌ DONE")
 	}
 }
 
 // renderStatusBar renders the session count summary.
 func (m Model) renderStatusBar() string {
-	total, working, idle := m.SessionCounts()
+	total, working, waiting, idle := m.SessionCounts()
 
 	var parts []string
 	parts = append(parts, fmt.Sprintf("%d sessions", total))
@@ -178,8 +179,15 @@ func (m Model) renderStatusBar() string {
 	if working > 0 {
 		parts = append(parts, m.Styles.StatusWorking.Render(fmt.Sprintf("%d working", working)))
 	}
+	if waiting > 0 {
+		parts = append(parts, m.Styles.StatusWaiting.Render(fmt.Sprintf("%d waiting", waiting)))
+	}
 	if idle > 0 {
 		parts = append(parts, m.Styles.StatusIdle.Render(fmt.Sprintf("%d idle", idle)))
+	}
+
+	if m.StatusMsg != "" {
+		parts = append(parts, m.Styles.StatusDone.Render(m.StatusMsg))
 	}
 
 	sep := m.Styles.StatusBar.Render(" · ")
@@ -189,19 +197,19 @@ func (m Model) renderStatusBar() string {
 // renderFooter renders context-sensitive keybindings.
 func (m Model) renderFooter() string {
 	if m.Cursor >= len(m.Nodes) {
-		return "q quit"
+		return "j/k navigate  ·  q quit"
 	}
 
 	node := m.Nodes[m.Cursor]
 	switch node.Type {
 	case NodeRepo:
-		return "enter expand  ·  n new  ·  q quit"
+		return "j/k navigate  ·  enter toggle  ·  h/l collapse/expand  ·  q quit"
 	case NodeSession:
-		return "enter attach  ·  c claude  ·  x archive  ·  r refresh  ·  q quit"
+		return "j/k navigate  ·  enter attach  ·  c claude  ·  h collapse  ·  r refresh  ·  q quit"
 	case NodeWindow:
-		return "enter attach  ·  r refresh  ·  q quit"
+		return "j/k navigate  ·  enter attach  ·  c claude  ·  h collapse  ·  r refresh  ·  q quit"
 	default:
-		return "q quit"
+		return "j/k navigate  ·  q quit"
 	}
 }
 

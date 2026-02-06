@@ -23,10 +23,12 @@ type Window struct {
 type Status string
 
 const (
-	// StatusIdle indicates Claude is running but not actively working.
-	StatusIdle Status = "IDLE"
 	// StatusWorking indicates Claude is actively processing a task.
 	StatusWorking Status = "WORKING"
+	// StatusWaiting indicates Claude needs user input (permission prompt, etc).
+	StatusWaiting Status = "WAITING"
+	// StatusIdle indicates Claude is running but not actively working.
+	StatusIdle Status = "IDLE"
 	// StatusDone indicates Claude has exited or the session is complete.
 	StatusDone Status = "DONE"
 )
@@ -154,7 +156,7 @@ func ParseWindowList(output string) []Window {
 }
 
 // GetPaneStatus detects if a Claude session is IDLE, WORKING, or DONE
-// by checking the pane's current command.
+// by checking the pane's current command and inspecting pane content.
 func (c *Client) GetPaneStatus(session, window string) Status {
 	target := session + ":" + window
 	output, err := c.execCommand("tmux", "display-message", "-t", target, "-p", "#{pane_current_command}")
@@ -169,12 +171,141 @@ func (c *Client) GetPaneStatus(session, window string) Status {
 		return StatusDone
 	}
 
-	// If claude is running, it's either IDLE or WORKING
+	// If claude is running, inspect pane content to distinguish IDLE vs WORKING
 	if cmd == "claude" || strings.Contains(cmd, "claude") {
-		return StatusIdle
+		return c.detectClaudeActivity(target)
 	}
 
 	return StatusDone
+}
+
+// detectClaudeActivity inspects the last few lines of a pane to determine
+// Claude Code's current state: actively working, waiting for input, or idle.
+//
+// Detection priority (matches agent-deck approach):
+//  1. Busy indicators (spinners, interrupt messages) → WORKING
+//  2. Prompt indicators (permission dialogs, input prompts) → WAITING
+//  3. Default → IDLE
+func (c *Client) detectClaudeActivity(target string) Status {
+	output, err := c.execCommand("tmux", "capture-pane", "-t", target, "-p", "-l", "10")
+	if err != nil {
+		return StatusIdle
+	}
+
+	content := string(output)
+
+	// Priority 1: Check busy indicators
+	if hasBusyIndicator(content) {
+		return StatusWorking
+	}
+
+	// Priority 2: Check prompt indicators
+	if hasPromptIndicator(content) {
+		return StatusWaiting
+	}
+
+	return StatusIdle
+}
+
+// busyStrings are text patterns that indicate Claude is actively working.
+var busyStrings = []string{
+	"ctrl+c to interrupt",
+	"esc to interrupt",
+}
+
+// spinnerChars includes both Braille and asterisk spinner characters.
+var spinnerChars = []rune{
+	// Braille spinners
+	'⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏',
+	// Asterisk spinners (Claude 2.1.25+)
+	'✳', '✽', '✶', '✢',
+}
+
+// hasBusyIndicator reports whether content contains indicators that Claude
+// is actively working: interrupt messages or spinner characters.
+func hasBusyIndicator(content string) bool {
+	lower := strings.ToLower(content)
+
+	// Check interrupt messages
+	for _, s := range busyStrings {
+		if strings.Contains(lower, s) {
+			return true
+		}
+	}
+
+	// Check spinner characters
+	return containsSpinnerChars(content)
+}
+
+// containsSpinnerChars checks for any spinner character in the content.
+func containsSpinnerChars(s string) bool {
+	for _, r := range s {
+		for _, spinner := range spinnerChars {
+			if r == spinner {
+				return true
+			}
+		}
+		// Also check Braille range for backwards compatibility
+		if r > 0x2800 && r <= 0x28FF {
+			return true
+		}
+	}
+	return false
+}
+
+// promptStrings are permission dialog patterns.
+var promptStrings = []string{
+	"yes, allow once",
+	"yes, allow always",
+	"no, and tell claude",
+}
+
+// confirmationPatterns are patterns for confirmation prompts.
+var confirmationPatterns = []string{
+	"continue?",
+	"proceed?",
+	"(y/n)",
+	"[yes/no]",
+}
+
+// hasPromptIndicator reports whether content contains indicators that Claude
+// is waiting for user input: permission dialogs or input prompts.
+func hasPromptIndicator(content string) bool {
+	lower := strings.ToLower(content)
+
+	// Check permission prompts
+	for _, s := range promptStrings {
+		if strings.Contains(lower, s) {
+			return true
+		}
+	}
+
+	// Check confirmation prompts
+	for _, p := range confirmationPatterns {
+		if strings.Contains(lower, p) {
+			return true
+		}
+	}
+
+	// Check for input prompt (last non-empty line ends with > or ❯)
+	lines := strings.Split(content, "\n")
+	lastLine := getLastNonEmptyLine(lines)
+	trimmed := strings.TrimSpace(lastLine)
+	if strings.HasSuffix(trimmed, ">") || strings.HasSuffix(trimmed, "❯") {
+		return true
+	}
+
+	return false
+}
+
+// getLastNonEmptyLine returns the last line that contains non-whitespace.
+func getLastNonEmptyLine(lines []string) string {
+	for i := len(lines) - 1; i >= 0; i-- {
+		if strings.TrimSpace(lines[i]) != "" {
+			return lines[i]
+		}
+	}
+	return ""
 }
 
 // CreateSession creates a new detached tmux session with the given name and working directory.
@@ -187,6 +318,10 @@ func (c *Client) CreateSession(name, workdir string) error {
 }
 
 // CreateWindow creates a new window in the given session.
+// If command is non-empty, it is run directly as the window's process.
+// Note: commands run this way use a non-login shell, so profile env vars
+// may not be available. Use CreateWindowWithShell for commands that need
+// the user's full environment.
 func (c *Client) CreateWindow(session, name string, command string) error {
 	args := []string{"new-window", "-t", session, "-n", name}
 	if command != "" {
@@ -195,6 +330,27 @@ func (c *Client) CreateWindow(session, name string, command string) error {
 	_, err := c.execCommand("tmux", args...)
 	if err != nil {
 		return fmt.Errorf("failed to create window %s in %s: %w", name, session, err)
+	}
+	return nil
+}
+
+// CreateWindowWithShell creates a new window with an interactive login shell,
+// then sends the command via send-keys. This ensures the user's profile files
+// (.zshrc, .zprofile, .bashrc) are sourced and env vars are available.
+func (c *Client) CreateWindowWithShell(session, name, command string) error {
+	// Create window with default shell (interactive login shell)
+	_, err := c.execCommand("tmux", "new-window", "-t", session, "-n", name)
+	if err != nil {
+		return fmt.Errorf("failed to create window %s in %s: %w", name, session, err)
+	}
+
+	// Send the command to the new window's shell
+	if command != "" {
+		target := session + ":" + name
+		_, err = c.execCommand("tmux", "send-keys", "-t", target, command, "Enter")
+		if err != nil {
+			return fmt.Errorf("failed to send command to %s:%s: %w", session, name, err)
+		}
 	}
 	return nil
 }

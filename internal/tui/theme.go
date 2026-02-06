@@ -18,6 +18,7 @@ type Theme struct {
 	Info      lipgloss.Color
 
 	Working lipgloss.Color
+	Waiting lipgloss.Color
 	Idle    lipgloss.Color
 	Done    lipgloss.Color
 }
@@ -38,6 +39,7 @@ var KanagawaClaw = Theme{
 	Info:      lipgloss.Color("#7E9CD8"),
 
 	Working: lipgloss.Color("#98BB6C"),
+	Waiting: lipgloss.Color("#E6C384"),
 	Idle:    lipgloss.Color("#FF9E3B"),
 	Done:    lipgloss.Color("#54546D"),
 }
@@ -56,6 +58,7 @@ type Styles struct {
 
 	// Status badges
 	StatusWorking lipgloss.Style
+	StatusWaiting lipgloss.Style
 	StatusIdle    lipgloss.Style
 	StatusDone    lipgloss.Style
 
@@ -92,6 +95,9 @@ func NewStyles(t Theme) Styles {
 
 		StatusWorking: lipgloss.NewStyle().
 			Foreground(t.Working),
+
+		StatusWaiting: lipgloss.NewStyle().
+			Foreground(t.Waiting),
 
 		StatusIdle: lipgloss.NewStyle().
 			Foreground(t.Idle),

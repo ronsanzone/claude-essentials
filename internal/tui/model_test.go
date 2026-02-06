@@ -4,8 +4,34 @@ import (
 	"fmt"
 	"testing"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/rsanzone/clawdbay/internal/tmux"
 )
+
+func TestRollupStatus(t *testing.T) {
+	tests := []struct {
+		name     string
+		statuses []tmux.Status
+		want     tmux.Status
+	}{
+		{"working wins all", []tmux.Status{tmux.StatusDone, tmux.StatusWorking, tmux.StatusWaiting}, tmux.StatusWorking},
+		{"waiting over idle", []tmux.Status{tmux.StatusIdle, tmux.StatusWaiting, tmux.StatusDone}, tmux.StatusWaiting},
+		{"idle over done", []tmux.Status{tmux.StatusDone, tmux.StatusIdle}, tmux.StatusIdle},
+		{"all done", []tmux.Status{tmux.StatusDone, tmux.StatusDone}, tmux.StatusDone},
+		{"empty returns done", []tmux.Status{}, tmux.StatusDone},
+		{"single working", []tmux.Status{tmux.StatusWorking}, tmux.StatusWorking},
+		{"single waiting", []tmux.Status{tmux.StatusWaiting}, tmux.StatusWaiting},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := RollupStatus(tt.statuses)
+			if got != tt.want {
+				t.Errorf("RollupStatus() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
 
 func TestGroupByRepo(t *testing.T) {
 	sessions := []tmux.Session{
@@ -195,9 +221,9 @@ func TestStatusRollup(t *testing.T) {
 
 func TestSessionCounts(t *testing.T) {
 	tests := []struct {
-		name                          string
-		groups                        []RepoGroup
-		wantTotal, wantWork, wantIdle int
+		name                                       string
+		groups                                     []RepoGroup
+		wantTotal, wantWork, wantWait, wantIdle int
 	}{
 		{
 			name: "mixed statuses",
@@ -216,24 +242,40 @@ func TestSessionCounts(t *testing.T) {
 					},
 				},
 			},
-			wantTotal: 3, wantWork: 1, wantIdle: 1,
+			wantTotal: 3, wantWork: 1, wantWait: 0, wantIdle: 1,
+		},
+		{
+			name: "with waiting",
+			groups: []RepoGroup{
+				{
+					Name: "repo-a",
+					Sessions: []WorktreeSession{
+						{Name: "s1", Status: tmux.StatusWaiting},
+						{Name: "s2", Status: tmux.StatusWorking},
+					},
+				},
+			},
+			wantTotal: 2, wantWork: 1, wantWait: 1, wantIdle: 0,
 		},
 		{
 			name:      "empty",
 			groups:    []RepoGroup{},
-			wantTotal: 0, wantWork: 0, wantIdle: 0,
+			wantTotal: 0, wantWork: 0, wantWait: 0, wantIdle: 0,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			m := Model{Groups: tt.groups}
-			total, working, idle := m.SessionCounts()
+			total, working, waiting, idle := m.SessionCounts()
 			if total != tt.wantTotal {
 				t.Errorf("total = %d, want %d", total, tt.wantTotal)
 			}
 			if working != tt.wantWork {
 				t.Errorf("working = %d, want %d", working, tt.wantWork)
+			}
+			if waiting != tt.wantWait {
+				t.Errorf("waiting = %d, want %d", waiting, tt.wantWait)
 			}
 			if idle != tt.wantIdle {
 				t.Errorf("idle = %d, want %d", idle, tt.wantIdle)
@@ -288,6 +330,140 @@ func TestVisibleRange(t *testing.T) {
 				t.Errorf("scroll = %d, want %d", newScroll, tt.wantScroll)
 			}
 		})
+	}
+}
+
+func TestUpdate_CursorMovement(t *testing.T) {
+	m := Model{
+		Groups: []RepoGroup{
+			{
+				Name: "repo", Expanded: true,
+				Sessions: []WorktreeSession{
+					{Name: "s1", Expanded: true, Windows: []tmux.Window{
+						{Index: 0, Name: "shell"},
+						{Index: 1, Name: "claude"},
+					}},
+				},
+			},
+		},
+		Styles:         NewStyles(KanagawaClaw),
+		WindowStatuses: make(map[string]tmux.Status),
+		Width:          80,
+		Height:         24,
+		Cursor:         0,
+	}
+	m.Nodes = BuildNodes(m.Groups)
+
+	// Verify initial state: 4 nodes (repo, session, shell, claude)
+	if len(m.Nodes) != 4 {
+		t.Fatalf("got %d nodes, want 4", len(m.Nodes))
+	}
+
+	// Press "j" → cursor moves from 0 to 1
+	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}})
+	m = updated.(Model)
+	if m.Cursor != 1 {
+		t.Errorf("after j: cursor = %d, want 1", m.Cursor)
+	}
+
+	// Press "down" → cursor moves from 1 to 2
+	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyDown})
+	m = updated.(Model)
+	if m.Cursor != 2 {
+		t.Errorf("after down: cursor = %d, want 2", m.Cursor)
+	}
+
+	// Press "k" → cursor moves from 2 to 1
+	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'k'}})
+	m = updated.(Model)
+	if m.Cursor != 1 {
+		t.Errorf("after k: cursor = %d, want 1", m.Cursor)
+	}
+
+	// Press "up" → cursor moves from 1 to 0
+	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyUp})
+	m = updated.(Model)
+	if m.Cursor != 0 {
+		t.Errorf("after up: cursor = %d, want 0", m.Cursor)
+	}
+
+	// Press "up" at top → cursor stays at 0
+	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyUp})
+	m = updated.(Model)
+	if m.Cursor != 0 {
+		t.Errorf("after up at top: cursor = %d, want 0", m.Cursor)
+	}
+}
+
+func TestUpdate_ExpandCollapse(t *testing.T) {
+	m := Model{
+		Groups: []RepoGroup{
+			{
+				Name: "repo", Expanded: true,
+				Sessions: []WorktreeSession{
+					{Name: "s1", Expanded: true, Windows: []tmux.Window{
+						{Index: 0, Name: "shell"},
+					}},
+				},
+			},
+		},
+		Styles:         NewStyles(KanagawaClaw),
+		WindowStatuses: make(map[string]tmux.Status),
+		Width:          80,
+		Height:         24,
+		Cursor:         0,
+	}
+	m.Nodes = BuildNodes(m.Groups)
+
+	// Initial: 3 nodes (repo expanded, session expanded, window)
+	if len(m.Nodes) != 3 {
+		t.Fatalf("initial nodes = %d, want 3", len(m.Nodes))
+	}
+
+	// Press "h" on repo → collapse repo
+	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'h'}})
+	m = updated.(Model)
+	if len(m.Nodes) != 1 {
+		t.Errorf("after h: nodes = %d, want 1 (repo collapsed)", len(m.Nodes))
+	}
+	if m.Groups[0].Expanded {
+		t.Error("after h: repo should be collapsed")
+	}
+
+	// Press "l" on collapsed repo → expand repo
+	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'l'}})
+	m = updated.(Model)
+	if len(m.Nodes) != 3 {
+		t.Errorf("after l: nodes = %d, want 3 (repo expanded)", len(m.Nodes))
+	}
+	if !m.Groups[0].Expanded {
+		t.Error("after l: repo should be expanded")
+	}
+
+	// Press "enter" on repo → toggle (collapse)
+	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	m = updated.(Model)
+	if len(m.Nodes) != 1 {
+		t.Errorf("after enter: nodes = %d, want 1 (repo collapsed)", len(m.Nodes))
+	}
+}
+
+func TestUpdate_QuitKey(t *testing.T) {
+	m := Model{
+		Groups:         []RepoGroup{},
+		Styles:         NewStyles(KanagawaClaw),
+		WindowStatuses: make(map[string]tmux.Status),
+		Width:          80,
+		Height:         24,
+	}
+
+	updated, cmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}})
+	result := updated.(Model)
+	if !result.Quitting {
+		t.Error("after q: Quitting should be true")
+	}
+	if cmd == nil {
+		t.Error("after q: cmd should not be nil (should be tea.Quit)")
 	}
 }
 
