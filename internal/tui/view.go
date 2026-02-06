@@ -8,78 +8,81 @@ import (
 	"github.com/rsanzone/clawdbay/internal/tmux"
 )
 
-var (
-	titleStyle = lipgloss.NewStyle().
-		Bold(true).
-		Foreground(lipgloss.Color("170"))
-
-	selectedStyle = lipgloss.NewStyle().
-		Bold(true).
-		Foreground(lipgloss.Color("212"))
-
-	repoStyle = lipgloss.NewStyle().
-		Bold(true).
-		Foreground(lipgloss.Color("141"))
-
-	sessionStyle = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("255"))
-
-	windowStyle = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("245"))
-
-	idleStyle = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("214"))
-
-	workingStyle = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("82"))
-
-	doneStyle = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("245"))
-
-	footerStyle = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("241"))
-)
-
 // View implements tea.Model.
 func (m Model) View() string {
 	if m.Quitting {
 		return ""
 	}
 
-	var b strings.Builder
-
-	// Header
-	b.WriteString(titleStyle.Render("- ClawdBay ") + strings.Repeat("-", 50) + "\n\n")
-
-	if len(m.Nodes) == 0 {
-		b.WriteString("  No active sessions.\n")
-		b.WriteString("  Start one with: cb start <branch-name>\n")
-	} else {
-		for i, node := range m.Nodes {
-			cursor := "  "
-			if i == m.Cursor {
-				cursor = "> "
-			}
-
-			line := m.renderNode(node, cursor)
-
-			if i == m.Cursor {
-				b.WriteString(selectedStyle.Render(line) + "\n")
-			} else {
-				b.WriteString(line + "\n")
-			}
-		}
+	if m.Width == 0 || m.Height == 0 {
+		return "Initializing..."
 	}
 
-	// Dynamic footer based on selected node type
-	b.WriteString("\n")
-	footer := m.renderFooter()
-	b.WriteString(footerStyle.Render(footer) + "\n")
+	innerWidth := m.Width - 2
+	if innerWidth < 10 {
+		innerWidth = 10
+	}
 
-	return b.String()
+	tree := m.renderTree(innerWidth)
+	statusBar := m.renderStatusBar()
+	footer := m.renderFooter()
+
+	return m.renderFrame(tree, statusBar, footer)
 }
 
-func (m Model) renderNode(node TreeNode, cursor string) string {
+// renderTree renders the scrollable tree content.
+func (m Model) renderTree(width int) string {
+	if len(m.Nodes) == 0 {
+		return "No active sessions.\n  Start one with: cb start <branch-name>"
+	}
+
+	lines := m.buildDisplayLines()
+	treeHeight := m.treeHeight()
+
+	cursorLine := CursorToLine(m.Nodes, m.Cursor)
+	start, end, _ := VisibleRange(len(lines), treeHeight, cursorLine, m.ScrollOffset)
+
+	visibleLines := lines[start:end]
+
+	var result []string
+	for _, line := range visibleLines {
+		result = append(result, padToWidth(line, width))
+	}
+
+	// Pad remaining lines to fill treeHeight
+	for len(result) < treeHeight {
+		result = append(result, strings.Repeat(" ", width))
+	}
+
+	return strings.Join(result, "\n")
+}
+
+// buildDisplayLines renders all tree nodes to display lines.
+func (m Model) buildDisplayLines() []string {
+	var lines []string
+
+	for i, node := range m.Nodes {
+		// Insert blank separator before each repo (except first)
+		if node.Type == NodeRepo && i > 0 {
+			lines = append(lines, "")
+		}
+
+		lines = append(lines, m.renderNodeLine(node, i))
+	}
+
+	return lines
+}
+
+// renderNodeLine renders one tree node.
+func (m Model) renderNodeLine(node TreeNode, nodeIdx int) string {
+	selected := nodeIdx == m.Cursor
+	cursor := "  "
+	if selected {
+		cursor = "❯ "
+	}
+
+	var line string
+
 	switch node.Type {
 	case NodeRepo:
 		repo := m.Groups[node.RepoIndex]
@@ -87,7 +90,7 @@ func (m Model) renderNode(node TreeNode, cursor string) string {
 		if repo.Expanded {
 			icon = "▼"
 		}
-		return fmt.Sprintf("%s%s %s", cursor, icon, repoStyle.Render(repo.Name))
+		line = cursor + icon + " " + m.Styles.Repo.Render(repo.Name)
 
 	case NodeSession:
 		session := m.Groups[node.RepoIndex].Sessions[node.SessionIndex]
@@ -95,65 +98,158 @@ func (m Model) renderNode(node TreeNode, cursor string) string {
 		if session.Expanded {
 			icon = "▼"
 		}
-		statusBadge := renderStatus(session.Status)
-		// Right-align status badge (pad to 60 chars)
-		name := fmt.Sprintf("  %s %s", icon, sessionStyle.Render(session.Name))
-		padding := 60 - len(name) - len(statusBadge)
-		if padding < 1 {
-			padding = 1
-		}
-		return fmt.Sprintf("%s%s%s%s", cursor, name, strings.Repeat(" ", padding), statusBadge)
+		badge := m.renderStatusBadge(session.Status)
+		left := cursor + "  " + icon + " " + m.Styles.Session.Render(session.Name)
+		line = m.rightAlign(left, badge)
 
 	case NodeWindow:
 		session := m.Groups[node.RepoIndex].Sessions[node.SessionIndex]
 		window := session.Windows[node.WindowIndex]
-		statusBadge := ""
+		badge := ""
 		if strings.HasPrefix(window.Name, "claude") {
 			key := session.Name + ":" + window.Name
 			if status, ok := m.WindowStatuses[key]; ok {
-				statusBadge = renderStatus(status)
+				badge = m.renderStatusBadge(status)
 			}
 		}
-		// Right-align status badge (pad to 60 chars)
-		name := fmt.Sprintf("      %s", windowStyle.Render(window.Name))
-		padding := 60 - len(name) - len(statusBadge)
-		if padding < 1 {
-			padding = 1
-		}
-		return fmt.Sprintf("%s%s%s%s", cursor, name, strings.Repeat(" ", padding), statusBadge)
+		left := cursor + "      " + m.Styles.Window.Render(window.Name)
+		line = m.rightAlign(left, badge)
 
 	default:
-		return cursor + "Unknown"
+		line = cursor + "Unknown"
+	}
+
+	if selected {
+		line = m.Styles.Selected.Render(line)
+	}
+
+	return line
+}
+
+// rightAlign aligns the right string to the right edge.
+func (m Model) rightAlign(left, right string) string {
+	if right == "" {
+		return left
+	}
+
+	available := m.Width - 4
+	leftWidth := lipgloss.Width(left)
+	rightWidth := lipgloss.Width(right)
+	gap := available - leftWidth - rightWidth
+	if gap < 1 {
+		gap = 1
+	}
+
+	return left + strings.Repeat(" ", gap) + right
+}
+
+// renderStatusBadge renders a colored status badge.
+func (m Model) renderStatusBadge(status tmux.Status) string {
+	switch status {
+	case tmux.StatusWorking:
+		return m.Styles.StatusWorking.Render("● WORKING")
+	case tmux.StatusIdle:
+		return m.Styles.StatusIdle.Render("○ IDLE")
+	case tmux.StatusDone:
+		return m.Styles.StatusDone.Render("◌ DONE")
+	default:
+		return m.Styles.StatusDone.Render("◌ DONE")
 	}
 }
 
+// renderStatusBar renders the session count summary.
+func (m Model) renderStatusBar() string {
+	total, working, idle := m.SessionCounts()
+
+	var parts []string
+	parts = append(parts, fmt.Sprintf("%d sessions", total))
+
+	if working > 0 {
+		parts = append(parts, m.Styles.StatusWorking.Render(fmt.Sprintf("%d working", working)))
+	}
+	if idle > 0 {
+		parts = append(parts, m.Styles.StatusIdle.Render(fmt.Sprintf("%d idle", idle)))
+	}
+
+	sep := m.Styles.StatusBar.Render(" · ")
+	return "  " + strings.Join(parts, sep)
+}
+
+// renderFooter renders context-sensitive keybindings.
 func (m Model) renderFooter() string {
 	if m.Cursor >= len(m.Nodes) {
-		return "[q] quit"
+		return "q quit"
 	}
 
 	node := m.Nodes[m.Cursor]
 	switch node.Type {
 	case NodeRepo:
-		return "[enter] expand  [n] new  [q] quit"
+		return "enter expand  ·  n new  ·  q quit"
 	case NodeSession:
-		return "[enter] attach  [c] add claude  [x] archive  [r] refresh  [q] quit"
+		return "enter attach  ·  c claude  ·  x archive  ·  r refresh  ·  q quit"
 	case NodeWindow:
-		return "[enter] attach  [r] refresh  [q] quit"
+		return "enter attach  ·  r refresh  ·  q quit"
 	default:
-		return "[q] quit"
+		return "q quit"
 	}
 }
 
-func renderStatus(status tmux.Status) string {
-	switch status {
-	case tmux.StatusWorking:
-		return workingStyle.Render("● WORKING")
-	case tmux.StatusIdle:
-		return idleStyle.Render("○ IDLE")
-	case tmux.StatusDone:
-		return doneStyle.Render("◌ DONE")
-	default:
-		return doneStyle.Render("◌ DONE")
+// renderFrame builds the bordered frame manually.
+func (m Model) renderFrame(tree, statusBar, footer string) string {
+	w := m.Width
+	if w < 20 {
+		w = 20
 	}
+
+	border := lipgloss.RoundedBorder()
+	bStyle := lipgloss.NewStyle().Foreground(m.Styles.Frame.GetBorderTopForeground())
+
+	// Top border with title: ╭─ ClawdBay ─────────────────╮
+	title := m.Styles.Title.Render(" ClawdBay ")
+	titleW := lipgloss.Width(title)
+	topLine := bStyle.Render(border.TopLeft+border.Top) +
+		title +
+		bStyle.Render(strings.Repeat(border.Top, max(0, w-titleW-4))+border.TopRight)
+
+	// Middle separator: ├─────────────────────────────┤
+	midLine := bStyle.Render(border.MiddleLeft) +
+		bStyle.Render(strings.Repeat(border.Top, w-2)) +
+		bStyle.Render(border.MiddleRight)
+
+	// Bottom border with footer: ╰─ enter attach · q quit ────╯
+	footerText := m.Styles.Footer.Render(" " + footer + " ")
+	footerW := lipgloss.Width(footerText)
+	botLine := bStyle.Render(border.BottomLeft+border.Bottom) +
+		footerText +
+		bStyle.Render(strings.Repeat(border.Bottom, max(0, w-footerW-4))+border.BottomRight)
+
+	// Side borders for content
+	side := bStyle.Render(border.Left)
+	sideR := bStyle.Render(border.Right)
+
+	var lines []string
+	lines = append(lines, topLine)
+
+	// Tree content with side borders
+	for _, cl := range strings.Split(tree, "\n") {
+		lines = append(lines, side+padToWidth(cl, w-2)+sideR)
+	}
+
+	// Separator + status bar
+	lines = append(lines, midLine)
+	lines = append(lines, side+padToWidth(statusBar, w-2)+sideR)
+
+	// Bottom
+	lines = append(lines, botLine)
+
+	return strings.Join(lines, "\n")
+}
+
+// padToWidth pads a string to exact visual width.
+func padToWidth(s string, width int) string {
+	w := lipgloss.Width(s)
+	if w >= width {
+		return s
+	}
+	return s + strings.Repeat(" ", width-w)
 }
