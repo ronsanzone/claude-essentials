@@ -18,7 +18,7 @@ var dashCmd = &cobra.Command{
 		tmuxClient := tmux.NewClient()
 		model := tui.InitialModel(tmuxClient)
 
-		p := tea.NewProgram(model)
+		p := tea.NewProgram(model, tea.WithAltScreen())
 		finalModel, err := p.Run()
 		if err != nil {
 			return err
