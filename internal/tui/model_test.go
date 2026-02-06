@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/rsanzone/clawdbay/internal/tmux"
@@ -187,6 +188,145 @@ func TestStatusRollup(t *testing.T) {
 			result := RollupStatus(tt.statuses)
 			if result != tt.expected {
 				t.Errorf("RollupStatus() = %q, want %q", result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestSessionCounts(t *testing.T) {
+	tests := []struct {
+		name                          string
+		groups                        []RepoGroup
+		wantTotal, wantWork, wantIdle int
+	}{
+		{
+			name: "mixed statuses",
+			groups: []RepoGroup{
+				{
+					Name: "repo-a",
+					Sessions: []WorktreeSession{
+						{Name: "s1", Status: tmux.StatusWorking},
+						{Name: "s2", Status: tmux.StatusIdle},
+					},
+				},
+				{
+					Name: "repo-b",
+					Sessions: []WorktreeSession{
+						{Name: "s3", Status: tmux.StatusDone},
+					},
+				},
+			},
+			wantTotal: 3, wantWork: 1, wantIdle: 1,
+		},
+		{
+			name:      "empty",
+			groups:    []RepoGroup{},
+			wantTotal: 0, wantWork: 0, wantIdle: 0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := Model{Groups: tt.groups}
+			total, working, idle := m.SessionCounts()
+			if total != tt.wantTotal {
+				t.Errorf("total = %d, want %d", total, tt.wantTotal)
+			}
+			if working != tt.wantWork {
+				t.Errorf("working = %d, want %d", working, tt.wantWork)
+			}
+			if idle != tt.wantIdle {
+				t.Errorf("idle = %d, want %d", idle, tt.wantIdle)
+			}
+		})
+	}
+}
+
+func TestVisibleRange(t *testing.T) {
+	tests := []struct {
+		name       string
+		lineCount  int
+		viewHeight int
+		cursorLine int
+		scrollOff  int
+		wantStart  int
+		wantEnd    int
+		wantScroll int
+	}{
+		{
+			name: "fits in view",
+			lineCount: 5, viewHeight: 10, cursorLine: 2, scrollOff: 0,
+			wantStart: 0, wantEnd: 5, wantScroll: 0,
+		},
+		{
+			name: "cursor below viewport scrolls down",
+			lineCount: 20, viewHeight: 10, cursorLine: 12, scrollOff: 0,
+			wantStart: 3, wantEnd: 13, wantScroll: 3,
+		},
+		{
+			name: "cursor above viewport scrolls up",
+			lineCount: 20, viewHeight: 10, cursorLine: 2, scrollOff: 5,
+			wantStart: 2, wantEnd: 12, wantScroll: 2,
+		},
+		{
+			name: "cursor at end",
+			lineCount: 20, viewHeight: 10, cursorLine: 19, scrollOff: 0,
+			wantStart: 10, wantEnd: 20, wantScroll: 10,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			start, end, newScroll := VisibleRange(tt.lineCount, tt.viewHeight, tt.cursorLine, tt.scrollOff)
+			if start != tt.wantStart {
+				t.Errorf("start = %d, want %d", start, tt.wantStart)
+			}
+			if end != tt.wantEnd {
+				t.Errorf("end = %d, want %d", end, tt.wantEnd)
+			}
+			if newScroll != tt.wantScroll {
+				t.Errorf("scroll = %d, want %d", newScroll, tt.wantScroll)
+			}
+		})
+	}
+}
+
+func TestCursorToLine(t *testing.T) {
+	groups := []RepoGroup{
+		{
+			Name: "repo-a", Expanded: true,
+			Sessions: []WorktreeSession{
+				{Name: "s1", Expanded: true, Windows: []tmux.Window{{Name: "shell"}, {Name: "claude"}}},
+			},
+		},
+		{
+			Name: "repo-b", Expanded: true,
+			Sessions: []WorktreeSession{
+				{Name: "s2", Expanded: false},
+			},
+		},
+	}
+	nodes := BuildNodes(groups)
+	// Nodes: [repo-a, s1, shell, claude, repo-b, s2]
+	// Lines: [repo-a, s1, shell, claude, <blank>, repo-b, s2]
+
+	tests := []struct {
+		cursor   int
+		wantLine int
+	}{
+		{0, 0},
+		{1, 1},
+		{2, 2},
+		{3, 3},
+		{4, 5}, // repo-b after blank line
+		{5, 6},
+	}
+
+	for _, tt := range tests {
+		t.Run(fmt.Sprintf("cursor_%d", tt.cursor), func(t *testing.T) {
+			line := CursorToLine(nodes, tt.cursor)
+			if line != tt.wantLine {
+				t.Errorf("CursorToLine(%d) = %d, want %d", tt.cursor, line, tt.wantLine)
 			}
 		})
 	}

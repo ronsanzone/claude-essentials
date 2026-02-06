@@ -65,6 +65,10 @@ type Model struct {
 	SelectedName   string
 	SelectedWindow string
 	WindowStatuses map[string]tmux.Status
+	Width          int
+	Height         int
+	ScrollOffset   int
+	Styles         Styles
 }
 
 // RollupStatus returns the most active status from a slice.
@@ -83,6 +87,22 @@ func RollupStatus(statuses []tmux.Status) tmux.Status {
 		return tmux.StatusIdle
 	}
 	return tmux.StatusDone
+}
+
+// SessionCounts returns total sessions and counts by status.
+func (m Model) SessionCounts() (total, working, idle int) {
+	for _, g := range m.Groups {
+		for _, s := range g.Sessions {
+			total++
+			switch s.Status {
+			case tmux.StatusWorking:
+				working++
+			case tmux.StatusIdle:
+				idle++
+			}
+		}
+	}
+	return
 }
 
 // GroupByRepo groups sessions by their repository name.
@@ -162,12 +182,47 @@ func BuildNodes(groups []RepoGroup) []TreeNode {
 	return nodes
 }
 
+// VisibleRange calculates which lines to display given viewport constraints.
+// Returns start (inclusive), end (exclusive), and new scroll offset.
+func VisibleRange(lineCount, viewHeight, cursorLine, scrollOffset int) (start, end, newOffset int) {
+	if lineCount <= viewHeight {
+		return 0, lineCount, 0
+	}
+
+	newOffset = scrollOffset
+	if cursorLine < newOffset {
+		newOffset = cursorLine
+	}
+	if cursorLine >= newOffset+viewHeight {
+		newOffset = cursorLine - viewHeight + 1
+	}
+
+	start = newOffset
+	end = min(newOffset+viewHeight, lineCount)
+	return start, end, newOffset
+}
+
+// CursorToLine maps a cursor position (node index) to a display line index,
+// accounting for blank separator lines between repo groups.
+func CursorToLine(nodes []TreeNode, cursor int) int {
+	line := 0
+	for i := 0; i < cursor && i < len(nodes); i++ {
+		line++
+		// A repo node that isn't the first means a blank line was inserted before it
+		if i+1 < len(nodes) && nodes[i+1].Type == NodeRepo {
+			line++ // blank separator line
+		}
+	}
+	return line
+}
+
 // InitialModel creates the initial dashboard model.
 func InitialModel(tmuxClient *tmux.Client) Model {
 	return Model{
 		Groups:         []RepoGroup{},
 		TmuxClient:     tmuxClient,
 		WindowStatuses: make(map[string]tmux.Status),
+		Styles:         NewStyles(KanagawaClaw),
 	}
 }
 
@@ -223,6 +278,39 @@ func fetchGroups(tmuxClient *tmux.Client) ([]RepoGroup, map[string]tmux.Status) 
 	return GroupByRepo(sessions, repoNames, windowMap, statusMap), statusMap
 }
 
+// adjustScroll updates ScrollOffset to keep cursor visible in the viewport.
+func (m *Model) adjustScroll() {
+	treeHeight := m.treeHeight()
+	if treeHeight < 1 {
+		return
+	}
+	cursorLine := CursorToLine(m.Nodes, m.Cursor)
+	_, _, m.ScrollOffset = VisibleRange(
+		m.totalDisplayLines(), treeHeight, cursorLine, m.ScrollOffset,
+	)
+}
+
+// treeHeight returns the number of lines available for the tree view.
+// Accounts for borders (2), status bar (1), and frame padding (1).
+func (m Model) treeHeight() int {
+	h := m.Height - 4
+	if h < 1 {
+		h = 1
+	}
+	return h
+}
+
+// totalDisplayLines returns the total number of display lines including blank separators.
+func (m Model) totalDisplayLines() int {
+	count := len(m.Nodes)
+	for i, node := range m.Nodes {
+		if node.Type == NodeRepo && i > 0 {
+			count++
+		}
+	}
+	return count
+}
+
 // Update implements tea.Model.
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
@@ -233,10 +321,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.Cursor >= len(m.Nodes) {
 			m.Cursor = max(0, len(m.Nodes)-1)
 		}
+		m.adjustScroll()
 		return m, nil
 
 	case tickMsg:
 		return m, tea.Batch(m.refreshCmd(), m.tickCmd())
+
+	case tea.WindowSizeMsg:
+		m.Width = msg.Width
+		m.Height = msg.Height
+		return m, nil
 
 	case tea.KeyMsg:
 		switch msg.String() {
@@ -246,10 +340,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "up", "k":
 			if m.Cursor > 0 {
 				m.Cursor--
+				m.adjustScroll()
 			}
 		case "down", "j":
 			if m.Cursor < len(m.Nodes)-1 {
 				m.Cursor++
+				m.adjustScroll()
 			}
 		case "enter":
 			return m.handleEnter()
@@ -299,6 +395,7 @@ func (m Model) handleEnter() (tea.Model, tea.Cmd) {
 	case NodeRepo:
 		m.Groups[node.RepoIndex].Expanded = !m.Groups[node.RepoIndex].Expanded
 		m.Nodes = BuildNodes(m.Groups)
+		m.adjustScroll()
 	case NodeSession:
 		session := m.Groups[node.RepoIndex].Sessions[node.SessionIndex]
 		m.SelectedName = session.Name
@@ -323,9 +420,11 @@ func (m Model) handleExpand() (tea.Model, tea.Cmd) {
 	case NodeRepo:
 		m.Groups[node.RepoIndex].Expanded = true
 		m.Nodes = BuildNodes(m.Groups)
+		m.adjustScroll()
 	case NodeSession:
 		m.Groups[node.RepoIndex].Sessions[node.SessionIndex].Expanded = true
 		m.Nodes = BuildNodes(m.Groups)
+		m.adjustScroll()
 	}
 	return m, nil
 }
@@ -340,13 +439,16 @@ func (m Model) handleCollapse() (tea.Model, tea.Cmd) {
 	case NodeRepo:
 		m.Groups[node.RepoIndex].Expanded = false
 		m.Nodes = BuildNodes(m.Groups)
+		m.adjustScroll()
 	case NodeSession:
 		m.Groups[node.RepoIndex].Sessions[node.SessionIndex].Expanded = false
 		m.Nodes = BuildNodes(m.Groups)
+		m.adjustScroll()
 	case NodeWindow:
 		// Collapse parent session
 		m.Groups[node.RepoIndex].Sessions[node.SessionIndex].Expanded = false
 		m.Nodes = BuildNodes(m.Groups)
+		m.adjustScroll()
 	}
 	return m, nil
 }
