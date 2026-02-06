@@ -8,6 +8,13 @@ import (
 	"github.com/rsanzone/clawdbay/internal/tmux"
 )
 
+const maxPanelWidth = 100
+
+// frameWidth returns the panel width, capped at maxPanelWidth.
+func (m Model) frameWidth() int {
+	return min(m.Width, maxPanelWidth)
+}
+
 // View implements tea.Model.
 func (m Model) View() string {
 	if m.Quitting {
@@ -18,7 +25,8 @@ func (m Model) View() string {
 		return "Initializing..."
 	}
 
-	innerWidth := m.Width - 2
+	fw := m.frameWidth()
+	innerWidth := fw - 2
 	if innerWidth < 10 {
 		innerWidth = 10
 	}
@@ -27,7 +35,10 @@ func (m Model) View() string {
 	statusBar := m.renderStatusBar()
 	footer := m.renderFooter()
 
-	return m.renderFrame(tree, statusBar, footer)
+	frame := m.renderFrame(tree, statusBar, footer)
+
+	// Center the panel in the terminal
+	return lipgloss.Place(m.Width, m.Height, lipgloss.Center, lipgloss.Center, frame)
 }
 
 // renderTree renders the scrollable tree content.
@@ -132,7 +143,7 @@ func (m Model) rightAlign(left, right string) string {
 		return left
 	}
 
-	available := m.Width - 4
+	available := m.frameWidth() - 4
 	leftWidth := lipgloss.Width(left)
 	rightWidth := lipgloss.Width(right)
 	gap := available - leftWidth - rightWidth
@@ -196,7 +207,7 @@ func (m Model) renderFooter() string {
 
 // renderFrame builds the bordered frame manually.
 func (m Model) renderFrame(tree, statusBar, footer string) string {
-	w := m.Width
+	w := m.frameWidth()
 	if w < 20 {
 		w = 20
 	}
