@@ -220,7 +220,7 @@ func (m Model) renderFrame(tree, statusBar, footer string) string {
 	titleW := lipgloss.Width(title)
 	topLine := bStyle.Render(border.TopLeft+border.Top) +
 		title +
-		bStyle.Render(strings.Repeat(border.Top, max(0, w-titleW-4))+border.TopRight)
+		bStyle.Render(strings.Repeat(border.Top, max(0, w-titleW-3))+border.TopRight)
 
 	// Middle separator: ├─────────────────────────────┤
 	midLine := bStyle.Render(border.MiddleLeft) +
@@ -232,7 +232,7 @@ func (m Model) renderFrame(tree, statusBar, footer string) string {
 	footerW := lipgloss.Width(footerText)
 	botLine := bStyle.Render(border.BottomLeft+border.Bottom) +
 		footerText +
-		bStyle.Render(strings.Repeat(border.Bottom, max(0, w-footerW-4))+border.BottomRight)
+		bStyle.Render(strings.Repeat(border.Bottom, max(0, w-footerW-3))+border.BottomRight)
 
 	// Side borders for content
 	side := bStyle.Render(border.Left)
