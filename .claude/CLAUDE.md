@@ -20,10 +20,6 @@
 
 * When starting a new conversation, ALWAYS make sure to load the relevant project context using `/ctx-load`
 
-* NEVER implement until you receive this exact signal: "Fuego!"
-  * NEVER ask via `AskUserQuestion` if you can proceed - wait for signal
-  * STOP and WAIT before proceeding after asking a question - wait for signal
-
 * ALWAYS use `AskUserQuestion` to ask questions. Never ask directly in response
 
 * ALWAYS go for the simplest and most maintainable solution that meets the requirements
