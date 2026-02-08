@@ -1,14 +1,14 @@
 {
-  "model": "us.anthropic.claude-opus-4-6-v1",
-  "statusLine": {
-    "type": "command",
-    "command": "/Users/ron.sanzone/.claude/statusline-command.sh"
-  },
+  "model": "anthropic.claude-opus-4-5-20251101-v1:0",
   "enabledPlugins": {
     "jira-cli@xdg-claude": true,
     "context-efficient-tools@xdg-claude": true,
     "code-review@claude-plugins-official": true,
     "superpowers@superpowers-marketplace": true
   },
-  "alwaysThinkingEnabled": true
+  "alwaysThinkingEnabled": true,
+  "statusLine": {
+    "type": "command",
+    "command": "/Users/ron.sanzone/.claude/statusline-command.sh"
+  }
 }
