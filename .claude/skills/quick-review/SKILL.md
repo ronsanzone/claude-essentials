@@ -9,11 +9,7 @@ Single-pass expert code review for fast, interactive feedback with detailed expl
 
 ## Overview
 
-A direct, conversational code review that explains the reasoning behind every finding. No multi-agent orchestration - just thorough expert analysis with interactive clarification.
-
-**When to use this vs pr-review:**
-- **quick-review**: Fast feedback, learning/discussion, exploring issues interactively
-- **pr-review**: Formal review, high-confidence filtering, ready-to-post findings
+A direct, conversational code review that explains the reasoning behind every finding. 
 
 ## Usage
 
@@ -56,143 +52,47 @@ gh pr view -R <owner/repo> <pr-number>
 gh pr diff -R <owner/repo> <pr-number>
 ```
 
-### Step 2: Check for CLAUDE.md (improvement over original)
+### Step 2: Review
+Once you have consumed the diff, performing the code review using the following guidance:
 
-Look for project-specific standards:
-```bash
-# Check root and modified directories for CLAUDE.md
-gh pr view -R <owner/repo> <pr-number> --json files -q '.files[].path' | \
-  xargs -I {} dirname {} | sort -u | \
-  while read dir; do echo "$dir/CLAUDE.md"; done
-```
+REVIEW PRIORITIES (in order):
+1. Correctness: Does it work as specified?
+2. Security: Are there vulnerabilities?
+3. Performance: Are there obvious bottlenecks?
+4. Maintainability: Will future developers understand it?
+5. Style: Does it follow conventions?
 
-If CLAUDE.md exists, factor its guidance into the review.
+When reviewing code, you will:
 
-### Step 3: Review the Diff
+**Analysis Framework in priority order:**
+0. **Correctness** - Evaluate code behavior for inconsistencies with requirements/specifications and comments; look for obvious bugs
+1. **Security Assessment** - Identify vulnerabilities, injection risks, authentication/authorization flaws, and data exposure issues
+2. **Performance Evaluation** - Analyze algorithmic complexity, memory usage, database queries, and potential bottlenecks
+3. **Code Quality Review** - Examine readability, maintainability, naming conventions, and structural organization
+4. **Best Practices Compliance** - Verify adherence to language-specific idioms, design patterns, and industry standards
+5. **Error Handling & Resilience** - Assess exception handling, input validation, and failure recovery mechanisms
+6. **Testing Considerations** - Evaluate testability and suggest testing strategies
 
-Apply the Analysis Framework systematically. For each issue found:
+**Review Process:**
+- Provide specific, actionable feedback with clear explanations of why changes are recommended
+- Prioritize issues by severity (Critical, High, Medium, Low)
+- Offer concrete code examples for suggested improvements
+- Explain the reasoning behind each recommendation, including potential consequences of not addressing issues
+- Consider the broader system context and architectural implications
+- Balance perfectionism with pragmatism - focus on changes that provide meaningful value
 
-1. **Identify** the problem clearly
-2. **Explain** why it's a problem (consequences if not fixed)
-3. **Suggest** a concrete fix with code example
-4. **Categorize** by severity
+**Communication Style:**
+- Be direct and constructive, avoiding unnecessary praise or criticism
+- Use technical precision while remaining accessible
+- Highlight both strengths and areas for improvement
+- Provide alternative approaches when applicable
+- Ask clarifying questions when context is needed
 
-### Step 4: Ask Clarifying Questions
+**Output Structure:**
+1. **Executive Summary** - Brief overview of overall code quality and key concerns
+2. **Critical Issues** - Security vulnerabilities and major problems requiring immediate attention
+3. **Significant Improvements** - Important but non-critical enhancements
+4. **Minor Suggestions** - Style, readability, and optimization opportunities
+5. **Positive Observations** - Well-implemented patterns and good practices worth noting
 
-If context is needed to provide better feedback, ask specific questions:
-- "Is this intentionally handling X this way, or should it also cover Y?"
-- "What's the expected behavior when Z occurs?"
-- "Does this need to maintain backwards compatibility with...?"
-
-## Output Structure
-
-```markdown
-## Code Review: <PR title>
-
-### Executive Summary
-<2-3 sentences on overall quality and key concerns>
-
-### Critical Issues
-Issues requiring immediate attention - security vulnerabilities, major bugs.
-
-1. **<Issue title>**
-   - **File:** `path/to/file.go:123`
-   - **Problem:** <Clear description>
-   - **Why it matters:** <Consequences>
-   - **Suggested fix:**
-   ```go
-   // concrete code example
-   ```
-
-### Significant Improvements
-Important but non-critical enhancements.
-
-1. **<Issue title>**
-   - **File:** `path/to/file.go:456`
-   - **Problem:** <Description>
-   - **Suggestion:** <How to improve>
-
-### Minor Suggestions
-Style, readability, optimization opportunities.
-
-- `file.go:78` - Consider renaming `x` to `userCount` for clarity
-- `file.go:92` - This loop could use `range` instead of index access
-
-### Positive Observations
-Well-implemented patterns worth noting.
-
-- Good use of error wrapping in `handler.go`
-- Clean separation of concerns in the service layer
-- Comprehensive input validation
-
-### Questions
-<Any clarifying questions for the author>
-```
-
-## Communication Style
-
-- **Direct and constructive** - No unnecessary praise or criticism
-- **Technical precision** - Use correct terminology
-- **Explain reasoning** - Every issue includes "why it matters"
-- **Offer alternatives** - Show better approaches when applicable
-- **Interactive** - Ask questions when context is missing
-
-## Severity Guidelines
-
-| Severity | Criteria | Action |
-|----------|----------|--------|
-| **Critical** | Security vulnerability, data loss risk, crashes | Must fix before merge |
-| **High** | Logic bugs, spec violations, major performance | Should fix before merge |
-| **Medium** | Code quality, maintainability, minor performance | Consider fixing |
-| **Low** | Style, conventions, minor improvements | Nice to have |
-
-## What NOT to Flag
-
-- Issues that linters/compilers catch (imports, types, formatting)
-- Pre-existing issues not introduced by this PR
-- Pedantic nitpicks a senior engineer wouldn't mention
-- Intentional functionality changes related to the PR's purpose
-- Style preferences not backed by project standards
-
-## Quick Reference
-
-| Aspect | Approach |
-|--------|----------|
-| Speed | Single-pass, no agent orchestration |
-| Depth | Thorough explanations for every issue |
-| Style | Interactive, asks clarifying questions |
-| Output | Structured report with severity tiers |
-| Standards | Checks CLAUDE.md if present |
-
-## Example Interaction
-
-**User:** `/quick-review anthropics/claude-code 789`
-
-**Response:**
-```
-## Code Review: Add user authentication endpoint
-
-### Executive Summary
-Solid implementation of JWT-based auth. One critical security issue with token
-validation and a few maintainability improvements suggested.
-
-### Critical Issues
-
-1. **Missing token expiration check**
-   - **File:** `auth/validate.go:45`
-   - **Problem:** Token is validated for signature but expiration is not checked
-   - **Why it matters:** Expired tokens will be accepted, defeating timeout security
-   - **Suggested fix:**
-   ```go
-   if claims.ExpiresAt.Before(time.Now()) {
-       return nil, ErrTokenExpired
-   }
-   ```
-
-### Positive Observations
-- Clean middleware pattern for auth injection
-- Good error messages that don't leak sensitive info
-
-### Questions
-- Is there an intentional grace period for token expiration?
-```
+Always consider the project's specific context, coding standards, and constraints. If you need additional context about the codebase, requirements, or constraints, ask specific questions to provide more targeted feedback.
