@@ -1,117 +1,106 @@
 ---
 name: deep-work
-description: "Use for complex engineering tasks where premature solutioning is dangerous. Runs a 6-phase pipeline: research-questions, research, design-discussion, outline, plan, implement — with bias isolation between prompt and research."
+description: "Use when starting or checking progress on a deep-work pipeline. Shows pipeline overview, phase progress, and which command to run next in a fresh conversation."
 ---
 
-# Deep Work Pipeline
+# Deep Work Pipeline Guide
 
-A 6-phase context engineering workflow that separates research from solutioning
-through a bias firewall. The original prompt is "burned" after Phase 1 — the
-research phase sees only objective questions, never the original intent.
+A 6-phase context engineering workflow that separates research from solutioning.
+Each phase runs in a **fresh conversation** to maintain context isolation.
 
-**Announce at start:** "Starting deep-work pipeline. This will guide you through
-6 phases with checkpoints between each."
+**Announce at start:** "Deep-work pipeline guide loaded."
 
-## Pipeline Overview
+## Pipeline
 
-```
-Phase 1: Research Questions — decompose prompt into objective questions
-Phase 2: Research — answer questions by investigating the codebase (NO prompt)
-Phase 3: Design Discussion — combine research with prompt to explore options
-Phase 4: Structure Outline — map decisions to concrete file changes
-Phase 5: Plan — detailed implementation plan with exact code patterns
-Phase 6: Implement — execute the plan
-```
+```dot
+digraph deep_work {
+    rankdir=TB;
+    node [shape=box, style=rounded, fontname="Helvetica"];
+    edge [fontname="Helvetica", fontsize=10];
 
-## Setup
+    subgraph cluster_pipeline {
+        label="Deep Work Pipeline — each phase in a fresh conversation";
+        style=dashed;
+        color=gray60;
+        fontname="Helvetica";
 
-1. Determine repo name:
-   ```bash
-   basename $(git remote get-url origin 2>/dev/null | sed 's/.git$//') 2>/dev/null || basename $(pwd)
-   ```
+        p1 [label="/dw-research-questions\nPrompt → objective questions"];
+        firewall [label="🔥 BIAS FIREWALL 🔥\nUser copies questions only\nOriginal prompt NOT passed"
+                  shape=octagon style=filled fillcolor="#ff4444" fontcolor=white];
+        p2 [label="/dw-research\nInvestigate codebase\n(NO prompt access)"];
+        reintro [label="Prompt re-introduced\nResearch locked in"
+                 shape=ellipse style=filled fillcolor="#ffffcc"];
+        p3 [label="/dw-design-discussion\nOptions grounded in evidence"];
+        p4 [label="/dw-outline\nDecisions → file changes"];
+        p5 [label="/dw-plan\nExact tasks, patterns, tests"];
+        p6 [label="/dw-implement\nExecute the plan"];
+    }
 
-2. Determine topic slug from `$ARGUMENTS`:
-   - If argument is a file path, read the file and use its title
-   - If argument is text, slugify it (lowercase, hyphens, no special chars)
-   - Ask user to confirm the topic slug
+    start [label="User prompt" shape=doublecircle];
+    done [label="Complete" shape=doublecircle];
 
-3. Create artifact directory:
-   ```bash
-   mkdir -p ~/notes/context-engineering/<repo>/<topic-slug>
-   ```
-
-4. Write `00-ticket.md`:
-   ```markdown
-   ---
-   phase: ticket
-   date: <today>
-   topic: <topic-slug>
-   repo: <repo>
-   git_sha: <HEAD>
-   status: complete
-   ---
-
-   ## Ticket
-
-   <user's prompt or file contents>
-   ```
-
-## Resume Support
-
-If invoked with `--resume <topic-slug>`:
-1. Read `.state.json` from the artifact directory
-2. Load the last completed phase
-3. Skip to the next phase
-4. Present: "Resuming <topic> at Phase <N>. Last completed: Phase <N-1>."
-
-## Phase Execution
-
-For each phase:
-1. Read the phase prompt from `phases/<phase-name>.md` (relative to this skill's directory)
-2. Follow the instructions in the phase prompt
-3. Write the output artifact to the artifact directory
-4. Present a summary of the artifact to the user
-5. Checkpoint via AskUserQuestion:
-   - **Continue** — proceed to next phase
-   - **Revise** — re-run current phase with user's feedback
-   - **Stop** — update .state.json, exit
-
-### Phase 1 → 2 Handoff (CRITICAL — Bias Firewall)
-After Phase 1 writes `01-research-questions.md`:
-- Present the questions to the user
-- Instruct: "Copy the Research Questions section below and paste it when prompted.
-  Edit or remove any questions you don't need. The research phase will ONLY see
-  what you paste — it will not read the original prompt."
-- Wait for user to paste questions before starting Phase 2
-
-### Phase 2 → 3 Handoff (Prompt Re-introduction)
-After Phase 2 writes `02-research.md`:
-- Present research summary
-- Note: "The original prompt will be re-introduced in Phase 3 alongside these
-  research findings. The research is now locked in objectively."
-
-## State Tracking
-
-After each phase completes, update `.state.json`:
-
-```json
-{
-  "topic": "<topic-slug>",
-  "repo": "<repo>",
-  "current_phase": <N>,
-  "completed_phases": [1, 2, ...],
-  "last_updated": "<ISO timestamp>"
+    start -> p1;
+    p1 -> firewall [label="questions only"];
+    firewall -> p2;
+    p2 -> reintro [label="02-research.md"];
+    reintro -> p3;
+    p3 -> p4 [label="03-design-discussion.md"];
+    p4 -> p5 [label="04-structure-outline.md"];
+    p5 -> p6 [label="05-plan.md"];
+    p6 -> done;
 }
 ```
 
-## Individual Phase Invocation
+## Commands
 
-Phases can also be run standalone via commands:
-- `/dw-research-questions` — Phase 1
-- `/dw-research` — Phase 2
-- `/dw-design-discussion` — Phase 3
-- `/dw-outline` — Phase 4
-- `/dw-plan` — Phase 5
-- `/dw-implement` — Phase 6
+| Phase | Command | Purpose |
+|-------|---------|---------|
+| 1 | `/dw-research-questions <slug>` | Decompose task into objective research questions |
+| 2 | `/dw-research <slug>` | Investigate codebase (bias firewall — no prompt access) |
+| 3 | `/dw-design-discussion <slug>` | Explore design options grounded in research |
+| 4 | `/dw-outline <slug>` | Map decisions to file changes |
+| 5 | `/dw-plan <slug>` | Create detailed implementation plan |
+| 6 | `/dw-implement <slug>` | Execute the plan |
 
-When run standalone, each command will ask for its required inputs.
+**CRITICAL:** Each phase MUST run in a **fresh conversation**. The bias firewall
+between Phase 1→2 requires that research never sees the original prompt.
+
+## Artifact Directory
+
+All phases read/write artifacts at:
+```
+~/notes/context-engineering/<repo>/<topic-slug>/
+```
+- `<repo>` derived from `git remote get-url origin`
+- `<topic-slug>` passed as argument to each command
+
+## Check Progress
+
+If `$ARGUMENTS` is provided as a topic-slug:
+1. Derive repo: `basename $(git remote get-url origin 2>/dev/null | sed 's/.git$//') 2>/dev/null || basename $(pwd)`
+2. Read `.state.json` from `~/notes/context-engineering/<repo>/<topic-slug>/`
+3. Report completed phases, current status, and next command to run
+4. If no `.state.json` found, suggest starting with `/dw-research-questions <slug>`
+
+If no arguments, show this pipeline documentation.
+
+## Bias Firewall (Phase 1→2)
+
+After Phase 1 generates research questions, the user copies ONLY the questions
+section. Phase 2 runs in a fresh conversation with NO access to the original
+prompt. This ensures research is objective and unbiased by the desired solution.
+
+The original prompt is re-introduced in Phase 3, after research is locked in.
+
+## Artifact Flow
+
+| File | Written By | Read By |
+|------|-----------|---------|
+| `00-ticket.md` | Phase 1 | Phase 3 |
+| `01-research-questions.md` | Phase 1 | None (user copies questions manually) |
+| `02-research.md` | Phase 2 | Phases 3, 4, 5 |
+| `03-design-discussion.md` | Phase 3 | Phase 4 |
+| `04-structure-outline.md` | Phase 4 | Phase 5 |
+| `05-plan.md` | Phase 5 | Phase 6 |
+| `06-completion.md` | Phase 6 | None |
+| `.state.json` | All phases | This guide |
