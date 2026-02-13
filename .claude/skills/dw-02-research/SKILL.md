@@ -1,5 +1,5 @@
 ---
-name: dw-research
+name: dw-02-research
 description: "Use when you have research questions from deep-work Phase 1. Objectively investigates the codebase to answer pasted questions without access to the original task description."
 ---
 
@@ -129,6 +129,6 @@ status: complete
      "last_updated": "<ISO timestamp>"
    }
    ```
-3. Instruct: "Research is locked in. Run `/dw-design-discussion <topic-slug>`
+3. Instruct: "Research is locked in. Run `/dw-03-design-discussion <topic-slug>`
    in a **fresh conversation** to continue. The original prompt will be
    re-introduced alongside these findings."

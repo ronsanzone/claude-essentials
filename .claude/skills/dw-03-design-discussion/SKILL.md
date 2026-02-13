@@ -1,5 +1,5 @@
 ---
-name: dw-design-discussion
+name: dw-03-design-discussion
 description: "Use when deep-work Phase 2 research is complete. Combines research findings with the original task to explore design options, evaluate tradeoffs, and make decisions interactively."
 ---
 
@@ -96,4 +96,4 @@ status: complete
 
 1. Present design decisions summary
 2. Update `.state.json` with `current_phase: 3, completed_phases: [1, 2, 3]`
-3. Instruct: "Run `/dw-outline <topic-slug>` in a **fresh conversation** to continue."
+3. Instruct: "Run `/dw-04-outline <topic-slug>` in a **fresh conversation** to continue."

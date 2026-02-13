@@ -1,4 +1,8 @@
 {
+  "env": {
+    "ENABLE_TOOL_SEARCH": "true",
+    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
+  },
   "model": "us.anthropic.claude-opus-4-6-v1",
   "statusLine": {
     "type": "command",
@@ -10,5 +14,6 @@
     "code-review@claude-plugins-official": true,
     "superpowers@superpowers-marketplace": true
   },
-  "alwaysThinkingEnabled": true
+  "alwaysThinkingEnabled": true,
+  "effortLevel": "medium"
 }

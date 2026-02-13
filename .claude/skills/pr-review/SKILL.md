@@ -49,7 +49,7 @@ Examples:
 
 ## Pipeline
 
-```dot
+```graphviz
 digraph pr_review {
     rankdir=TB;
 

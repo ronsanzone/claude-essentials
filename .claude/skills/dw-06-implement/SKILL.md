@@ -1,5 +1,5 @@
 ---
-name: dw-implement
+name: dw-06-implement
 description: "Use when deep-work Phase 5 plan is complete. Executes the implementation plan with progress tracking, deviation logging, and completion verification."
 ---
 

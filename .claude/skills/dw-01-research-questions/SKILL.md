@@ -1,5 +1,5 @@
 ---
-name: dw-research-questions
+name: dw-01-research-questions
 description: "Use when starting a new deep-work task. Decomposes a task description into objective research questions that avoid premature solutioning. Phase 1 of the deep-work pipeline."
 ---
 
@@ -21,7 +21,7 @@ by reading the codebase. Questions must NOT assume any particular solution.
    basename $(git remote get-url origin 2>/dev/null | sed 's/.git$//') 2>/dev/null || basename $(pwd)
    ```
 3. Create artifact directory:
-   ```bash
+   ```bash*
    mkdir -p ~/notes/context-engineering/<repo>/<topic-slug>
    ```
 4. Write `00-ticket.md` to the artifact directory:
@@ -132,5 +132,5 @@ digraph handoff {
    }
    ```
 3. Instruct: "Review and edit questions as needed. When ready, **copy everything
-   below '## Research Questions'** and run `/dw-research <topic-slug>` in a
+   below '## Research Questions'** and run `/dw-02-research <topic-slug>` in a
    **fresh conversation**, pasting the questions when prompted."

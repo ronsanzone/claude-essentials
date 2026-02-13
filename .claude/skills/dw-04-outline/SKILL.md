@@ -1,5 +1,5 @@
 ---
-name: dw-outline
+name: dw-04-outline
 description: "Use when deep-work Phase 3 design decisions are complete. Maps chosen decisions to concrete file changes organized into implementable phases."
 ---
 
@@ -89,4 +89,4 @@ Present outline. Ask: "Does this scope and phasing look right?"
 
 1. Present outline summary
 2. Update `.state.json` with `current_phase: 4, completed_phases: [1, 2, 3, 4]`
-3. Instruct: "Run `/dw-plan <topic-slug>` in a **fresh conversation** to continue."
+3. Instruct: "Run `/dw-05-plan <topic-slug>` in a **fresh conversation** to continue."
