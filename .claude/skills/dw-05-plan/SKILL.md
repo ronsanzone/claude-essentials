@@ -53,12 +53,13 @@ For each phase in the outline, create tasks covering ONE file change (or tightly
 **Task granularity:** 2-5 minutes each. Pattern: write failing test → run
 (expect fail) → implement → run (expect pass) → commit.
 
+Ideallly each task in a phase of the plan should be independent enough to execute in its own context window. Try to create discrete small tasks that can be chained together.
+
 **You MUST follow the outline**
 
 #### Task Structure
-## Task Structure
 
-```markdown
+````markdown
 
 ### Task N: [Component Name]
 
@@ -98,7 +99,7 @@ Expected: PASS
 git add tests/path/test.py src/path/file.py
 git commit -m "feat: add specific feature"
 ```
-```
+````
 
 ### Step 3: Phase success criteria
 Per phase: automated criteria (commands that must pass) + manual criteria.
@@ -112,7 +113,7 @@ Include specific task or checkpoint for each risk from the outline's register.
 ### Step 6: Write artifact
 Write `05-plan.md` to the artifact directory. Include plan header:
 
-```markdown
+````markdown
 # <Topic> Implementation Plan
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
@@ -120,7 +121,7 @@ Write `05-plan.md` to the artifact directory. Include plan header:
 **Goal:** <from outline>
 **Architecture:** <key decisions>
 **Tech Stack:** <relevant tech>
-```
+````
 
 Followed by an **Execution Progress** section (before the phase details), then full phase/task detail in standard plan format.
 
@@ -132,7 +133,7 @@ reads this section first to know exactly where to resume. Include three subsecti
 
 #### 7a: Phase Progress table
 
-```markdown
+````markdown
 ### Phase Progress
 
 | # | Phase | Status | Validation Command | Result |
@@ -148,7 +149,7 @@ criteria. The `Result` column is updated with PASS/FAIL + timestamp when validat
 
 #### 7b: Task Completion table
 
-```markdown
+````markdown
 ### Task Completion
 
 | Task | Description | Status | Committed | Deviations |
@@ -158,7 +159,7 @@ criteria. The `Result` column is updated with PASS/FAIL + timestamp when validat
 | ... | ... | ... | ... | ... |
 
 **Task status legend:** `[ ]` pending | `[~]` in progress | `[x]` done | `[!]` blocked | `[-]` skipped
-```
+````
 
 One row per task, grouped under phase header rows. Description is a terse summary
 (e.g., "`ApiDateCriteriaView` record"). Committed column gets the short SHA when
@@ -166,7 +167,7 @@ committed. Deviations column notes any changes from the plan.
 
 #### 7c: Deviation Log
 
-```markdown
+````markdown
 ### Deviation Log
 
 > Record any deviations from the plan here. Include: task ID, what changed, why, and
@@ -174,7 +175,7 @@ committed. Deviations column notes any changes from the plan.
 > sessions.
 
 _No deviations recorded._
-```
+````
 
 This is a free-form section. The implementing agent appends entries here when a task
 requires changes from the plan. Format: `**Task X.Y:** <what changed> — <why> — <downstream impact>`.
