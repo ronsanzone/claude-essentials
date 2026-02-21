@@ -27,6 +27,10 @@ Execute plan by dispatching fresh subagent per task, with two-stage review after
   - In Claude Code, use the TaskCreate, TaskUpdate, and TaskList tools to manage tasks.
   - Manage task dependencies with the TaskUpdate tool's dependency field.
 
+## Model Selection
+- All Task tool dispatches (implementer, spec reviewer, code quality reviewer, quick-review) should use `model: "sonnet"` parameter
+- This applies to every subagent spawned during the implementation process
+
 ## Plan Structure Expectations
 
 The plan should be structured with clear headers for phases and tasks. The subagent-driven approach relies on dispatching a new subagent for as small a scope as possible to preserve context. Ideallly each task in a phase of the plan should be it's own subagent loop. Try to avoid sending whole phases or multiple tasks to a single subagent.
@@ -54,7 +58,10 @@ digraph process {
 
     "Read plan, extract all tasks with full text, note context, create TodoWrite" [shape=box];
     "More tasks remain?" [shape=diamond];
-    "Dispatch final code reviewer subagent for entire implementation" [shape=box];
+    "Dispatch quick-review session review" [shape=box];
+    "Critical/Significant issues found?" [shape=diamond];
+    "AskUserQuestion: which issues to fix?" [shape=box];
+    "Fix selected issues" [shape=box];
     "Move to completion" [shape=box style=filled fillcolor=lightgreen];
 
     "Read plan, extract all tasks with full text, note context, create TodoWrite" -> "Dispatch implementer subagent (./implementer-prompt.md)";
@@ -73,8 +80,12 @@ digraph process {
     "Code quality reviewer subagent approves?" -> "Mark task complete in TodoWrite" [label="yes"];
     "Mark task complete in TodoWrite" -> "More tasks remain?";
     "More tasks remain?" -> "Dispatch implementer subagent (./implementer-prompt.md)" [label="yes"];
-    "More tasks remain?" -> "Dispatch final code reviewer subagent for entire implementation" [label="no"];
-    "Dispatch final code reviewer subagent for entire implementation" -> "Move to completion";
+    "More tasks remain?" -> "Dispatch quick-review session review" [label="no"];
+    "Dispatch quick-review session review" -> "Critical/Significant issues found?" [shape=diamond];
+    "Critical/Significant issues found?" -> "AskUserQuestion: which issues to fix?" [label="yes"];
+    "AskUserQuestion: which issues to fix?" -> "Fix selected issues" [shape=box];
+    "Fix selected issues" -> "Move to completion";
+    "Critical/Significant issues found?" -> "Move to completion" [label="no"];
 }
 ```
 
@@ -154,11 +165,34 @@ Code reviewer: ✅ Approved
 ...
 
 [After all tasks]
-[Dispatch final code-reviewer]
-Final reviewer: All requirements met, ready to merge
+[Dispatch quick-review session review: /quick-review local commits <git_sha_start>..<git_sha_end>]
+Quick reviewer: Strengths: Solid architecture, good test coverage.
+  Critical: SQL injection in search.ts:45
+  Minor: Naming inconsistency in utils.ts
+
+[Critical issues found → AskUserQuestion: "The session review found these Critical/Significant issues: ...
+Which should be addressed?"]
+
+User: "Fix the SQL injection, skip the naming issue"
+
+[Fix SQL injection, re-commit]
 
 Done!
 ```
+
+## Session Review (After All Tasks)
+
+After all tasks are complete, dispatch a fresh Task subagent (`general-purpose`, `model: "sonnet"`) to invoke the `/quick-review` skill:
+
+```
+Invoke the /quick-review skill to review the local commits <git_sha_start>..<git_sha_end>
+```
+
+When the review returns:
+- **Critical or Significant issues found:** Use AskUserQuestion to present the findings and ask the user which parts of the implemented code should be changed. Apply requested fixes before proceeding to completion.
+- **Minor issues only or no issues:** Proceed to completion.
+
+This replaces the previous "final code reviewer" step with a fresh-context holistic review of all session changes.
 
 ## Advantages
 ** Context Engineering:**

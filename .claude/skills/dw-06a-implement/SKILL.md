@@ -7,6 +7,8 @@ description: "Use when deep-work Phase 5 plan is complete. Use when executing a 
 
 Execute the implementation plan. Delegates to existing execution skills.
 
+**Model selection:** When spawning Task tool subagents, use `model: "sonnet"` parameter.
+
 **Announce at start:** "Starting deep-work Phase 6: Implementation."
 
 ## Setup
@@ -59,6 +61,15 @@ Based on feedback:
 ### Step 5: Track deviations
 Note during implementation: line number shifts, unplanned tasks, materialized
 risks, skipped or modified tasks.
+
+### Step 5b: Session Review
+1. Dispatch a fresh Task subagent (`general-purpose`, `model: "sonnet"`) with prompt:
+   ```
+   Invoke the /quick-review skill to review the local commits <git_sha_start>..<git_sha_end>
+   ```
+2. When the review returns:
+   - **Critical or Significant issues found:** Use AskUserQuestion to present the findings and ask which parts of the implemented code should be changed based on the review feedback. Apply requested fixes before proceeding.
+   - **Minor issues only or no issues:** Proceed to completion.
 
 ### Step 6: Write completion artifact
 Write `06-completion.md` to the artifact directory:

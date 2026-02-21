@@ -76,7 +76,15 @@ Only read files explicitly passed as arguments. Do NOT search for context files.
 
 ### Step 5: Output
 
-Present filled template for user review. Do NOT create PR automatically.
+Present filled template for user review. Do NOT push automatically.
+
+### Step 6: Push to PR (on approval)
+
+When the user approves the description, push it using `gh pr edit`:
+
+- If a PR URL was provided as an argument, extract the PR number from it
+- If on a branch with an open PR, use `gh pr edit` with no number (targets current branch's PR)
+- Use a HEREDOC to pass the body: `gh pr edit <number> --body "$(cat <<'EOF' ... EOF)"`
 
 ## Length Limits (Strict)
 
@@ -107,4 +115,5 @@ When these patterns appear in changes, mention them for reviewers:
 | 2 | Get git diff, commits, branch |
 | 3 | Read ONLY user-provided context files |
 | 4 | Fill sections, DELETE unused optional sections |
-| 5 | Output for review (don't create PR) |
+| 5 | Output for review (don't push automatically) |
+| 6 | On approval, push to PR via `gh pr edit` |
