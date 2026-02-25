@@ -1,18 +1,19 @@
 {
   "env": {
-    "ENABLE_TOOL_SEARCH": "true",
-    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
+    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
+    "ENABLE_TOOL_SEARCH": "true"
   },
-  "model": "us.anthropic.claude-sonnet-4-6",
   "statusLine": {
     "type": "command",
-    "command": "/Users/ron.sanzone/.claude/statusline-command.sh"
+    "command": "~/.claude/statusline-command.sh"
   },
   "enabledPlugins": {
-    "jira-cli@xdg-claude": true,
-    "context-efficient-tools@xdg-claude": true,
     "code-review@claude-plugins-official": true,
-    "superpowers@superpowers-marketplace": true
+    "context-efficient-tools@xdg-claude": true,
+    "frontend-design@claude-plugins-official": true,
+    "jira-cli@xdg-claude": true,
+    "superpowers@claude-plugins-official": true,
+    "context7@claude-plugins-official": true
   },
   "alwaysThinkingEnabled": true,
   "effortLevel": "medium"
