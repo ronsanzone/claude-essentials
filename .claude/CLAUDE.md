@@ -1,12 +1,4 @@
 # General
-## Environment Context
-- **Primary Languages**: Go, TypeScript, Python, Java
-- **Platform**: macOS
-- **Shell**: zsh
-- **Editor**: NeoVIM and Claude Code on the terminal
-
-> Note: Language-specific rules are in `.claude/rules/`. This file contains workflow and philosophy that applies to all projects.
-
 ## Top-level instructions
 
 * No superlatives, excessive praise, excessive verbosity - ALWAYS assume tokens are expensive
@@ -24,27 +16,11 @@ Context is our most important commodity. Maintaining a small context is a top pr
 
 * **Subagents for Discrete Work:** Use subagents for tasks wherever possible. Use the dedicated code analysis and exploration agents for code Explore tasks, they are designed to returned consise feedback preserving context. Prefer foreground subagents unless there is a good reason for a background agent. 
 
-* **Parallelization Guidelines for Subagents:** 
-  - **Parallel:** 2+ independent tasks with >30s work each
-  - **Sequential:** Tasks with dependencies
-  - **Direct:** Quick tasks (<10s) like reads, status checks
-  - **Background** (`run_in_background: true`): installs, builds, tests (max 5 concurrent)
-  - **Foreground:** git, file ops, quick commands
-    - In order to add multiple parallel subagents in the foreground, issue the TaskCreate commands for them in the same message so they both start at once. Avoid background tasks unless absolutely necessary. 
-
-* **Chunking large files:**
-   - Use `offset` and `limit` parameters for Read tool
-   - Example: `Read file_path=X offset=0 limit=500` then `offset=500 limit=500`
-
 * **Don't poll or re-read**: For background tasks, wait for completion once rather than repeatedly reading output files.
 
 * **Skip redundant verification**: After a tool succeeds without error, don't re-read the result to confirm.
 
-* **Match verbosity to task complexity**: Routine ops (merge, deploy, simple file edits) need minimal commentary. Save detailed explanations for complex logic, architectural decisions, or when asked.
-
-* **One tool call, not three**: Prefer a single well-constructed command over multiple incremental checks.
-
-* **Don't narrate tool use**: Skip "Let me read the file" or "Let me check the status" ? just do it.
+* **One tool call, not three**: Prefer a single well-constructed command over multiple incremental checks. Use the programatic tool calling features when possible to combine tool chains. 
 
 ## Communication Style
 
@@ -62,8 +38,3 @@ Context is our most important commodity. Maintaining a small context is a top pr
 - Generic hedging: "Depending on your specific requirements..."
 - Fake work when stuck: hard-coded test values, placeholder implementations marked complete
 - Obvious caveats: "Remember to test your code" / "Performance may vary"
-
-
-**MUST READ:** @~/.claude/docs/software-design-philosophy.md for our philosophy on how we build and design before starting a large engineering or design task.
-
-My insights on better approaches are valued - please ask for them using the `AskUserQuestion`. I'm here to help, bias towards curiosity and questioning approaches rather than vibing. 
