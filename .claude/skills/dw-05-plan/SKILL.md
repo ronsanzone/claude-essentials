@@ -25,16 +25,18 @@ Assume they are a skilled developer, but know almost nothing about our toolset o
 
 ## Pre-flight Validation
 
+- `00-ticket.md` exists → if not: "Ticket not found. Complete Phases 1-4 first." **Stop.**
+- `02-research.md` exists → if not: "Research not found. Complete Phases 1-4 first." **Stop.**
+- `03-design-discussion.md` exists → if not: "Design decisions not found. Complete Phases 1-4 first." **Stop.**
 - `04-structure-outline.md` exists → if not: "Outline not found. Complete Phases 1-4 first." **Stop.**
-- `02-research.md` exists → if not: "Research not found. Complete Phases 1-2 first." **Stop.**
-- `03-design-discussion.md` exists → if not: "Design decisions not found. Complete Phases 1-3 first." **Stop.**
 
 ## Process
 
 ### Step 1: Load context
-1. Read `04-structure-outline.md` — phase structure and file map
+1. Read `00-ticket.md` — initial prompt and context on the changes we're making
 2. Read `02-research.md` — code patterns and file:line references
 3. Read `03-design-discussion.md` — chosen design decisions
+4. Read `04-structure-outline.md` — phase structure and file map
 
 ### Step 2: Expand phases into tasks
 For each phase in the outline, create tasks covering ONE file change (or tightly coupled pair).
@@ -116,8 +118,6 @@ Write `05-plan.md` to the artifact directory. Include plan header:
 ````markdown
 # <Topic> Implementation Plan
 
-> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
-
 **Goal:** <from outline>
 **Architecture:** <key decisions>
 **Tech Stack:** <relevant tech>
@@ -191,7 +191,7 @@ date: <today>
 topic: <topic-slug>
 repo: <repo>
 git_sha: <HEAD>
-input_artifacts: [02-research.md, 04-structure-outline.md]
+input_artifacts: [00-ticket.md, 02-research.md, 03-design-discussion.md, 04-structure-outline.md]
 total_phases: <N>
 total_tasks: <N>
 status: complete
@@ -202,4 +202,4 @@ status: complete
 
 1. Present full plan to user for review
 2. Update `.state.json` with `current_phase: 5, completed_phases: [1, 2, 3, 4, 5]`
-3. Instruct: "Plan ready. Run `/dw-06-implement <topic-slug>` in a **fresh conversation** to execute."
+3. Instruct: "Plan ready. Run `/dw-06a-implement <topic-slug>` in a **fresh conversation** to execute this plan in a single session. Or run `/dw-06b-implement-subagents <topic-slug>` in a **fresh conversation** to execute a larger plan in a single with sub-agents."
