@@ -195,13 +195,10 @@ When the review returns:
 This replaces the previous "final code reviewer" step with a fresh-context holistic review of all session changes.
 
 ## Advantages
-** Context Engineering:**
+
+**Context Engineering:**
 - Subagents have fresh context and are given exactly what they need (task text + relevant context) → better understanding, fewer questions
 - Smaller context window per subagent means we get more power out of the models
-
-**vs. Executing Plans:**
-- Continuous progress (no waiting)
-- Review checkpoints automatic
 
 **Efficiency gains:**
 - No file reading overhead (controller provides full text)

@@ -9,6 +9,13 @@
 
 * ALWAYS go for the simplest and most maintainable solution that meets the requirements instead of over-engineering. KISS, Occam's razor principles, SOLID, YAGNI principles.  
 
+* **CRITICAL: Use dedicated tools over Bash for file operations** — all of these trigger permission prompts unnecessarily when done via Bash:
+  - Read (not `cat`/`head`/`tail`/`sed`) — including partial reads via `offset`/`limit` instead of `sed -n 'X,Yp'`
+  - Grep (not `grep`/`rg`)
+  - Glob (not `find`/`ls`)
+  - Edit (not `sed`/`awk` for modifications)
+  - Write (not `echo >`/`cat <<EOF`)
+
 ## Context Engineering
 Context is our most important commodity. Maintaining a small context is a top priority. You MUST adhere to the following:
 
@@ -20,7 +27,7 @@ Context is our most important commodity. Maintaining a small context is a top pr
 
 * **Skip redundant verification**: After a tool succeeds without error, don't re-read the result to confirm.
 
-* **One tool call, not three**: Prefer a single well-constructed command over multiple incremental checks. Use the programatic tool calling features when possible to combine tool chains. 
+* **One tool call, not three**: Prefer a single well-constructed command over multiple incremental checks. Use the programatic tool calling features when possible to combine tool chains.
 
 ## Communication Style
 

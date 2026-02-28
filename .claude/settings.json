@@ -1,8 +1,15 @@
 {
+  "cleanupPeriodDays": 210,
   "env": {
     "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
     "ENABLE_TOOL_SEARCH": "true"
   },
+  "permissions": {
+    "allow": [
+      "Bash(sed -n)"
+    ]
+  },
+  "model": "opus",
   "statusLine": {
     "type": "command",
     "command": "~/.claude/statusline-command.sh"

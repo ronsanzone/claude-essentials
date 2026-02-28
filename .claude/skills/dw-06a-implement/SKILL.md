@@ -47,10 +47,22 @@ For each task:
 4. Mark as completed
 
 ### Step 3: Report
-When batch complete:
-- Show what was implemented
-- Show verification output
-- Say: "Ready for feedback."
+When batch complete, use this format:
+
+```
+Phase [N] Complete - Ready for Review
+
+Automated verification:
+- [command]: PASS/FAIL
+
+Tasks completed:
+- [task]: [brief description of what was done]
+
+Deviations from plan:
+- [any adaptations made, or "None"]
+
+Ready for feedback before continuing to Phase [N+1].
+```
 
 ### Step 4: Continue
 Based on feedback:
@@ -62,7 +74,7 @@ Based on feedback:
 Note during implementation: line number shifts, unplanned tasks, materialized
 risks, skipped or modified tasks.
 
-### Step 5b: Session Review
+### Step 6: Session Review
 1. Dispatch a fresh Task subagent (`general-purpose`, `model: "sonnet"`) with prompt:
    ```
    Invoke the /quick-review skill to review the local commits <git_sha_start>..<git_sha_end>
@@ -71,7 +83,7 @@ risks, skipped or modified tasks.
    - **Critical or Significant issues found:** Use AskUserQuestion to present the findings and ask which parts of the implemented code should be changed based on the review feedback. Apply requested fixes before proceeding.
    - **Minor issues only or no issues:** Proceed to completion.
 
-### Step 6: Write completion artifact
+### Step 7: Write completion artifact
 Write `06-completion.md` to the artifact directory:
 ```yaml
 ---
@@ -111,6 +123,25 @@ status: complete
 
 **Ask for clarification rather than guessing.**
 
+## Presenting Mismatches
+
+When the codebase doesn't match plan expectations, present the issue clearly:
+
+```
+Issue in Phase [N], Task [M]:
+Expected: [what the plan says]
+Found: [actual situation]
+Why this matters: [impact on implementation]
+
+Options:
+1. [possible approach]
+2. [alternative approach]
+
+How should I proceed?
+```
+
+Don't force through mismatches or silently adapt - make deviations visible.
+
 ## When to Revisit Earlier Steps
 
 **Return to Review (Step 1) when:**
@@ -121,9 +152,17 @@ status: complete
 
 ## Remember
 - Review plan critically first
-- Follow plan steps exactly
+- Follow plan intent; when reality diverges, present clearly using the mismatch format
+- Read plan files and referenced code fully - don't use limit/offset to save context
 - Don't skip verifications
 - Reference skills when plan says to
 - Between batches: just report and wait
 - Stop when blocked, don't guess
 - Never start implementation on main/master branch without explicit user consent
+
+## Related Skills
+
+This skill is part of the deep-work pipeline:
+- **dw-05-plan** - Creates the plan this skill executes
+- **dw-06b-implement-subagents** - Alternative: parallel execution via subagents
+- **/quick-review** - Called in Step 6 for session code review

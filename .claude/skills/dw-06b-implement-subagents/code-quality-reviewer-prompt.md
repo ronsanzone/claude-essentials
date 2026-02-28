@@ -8,8 +8,6 @@ Use this template when dispatching a code quality reviewer subagent.
 
 ````
 Task tool (general-purpose, model: "sonnet"):
-  Use template at requesting-code-review/code-reviewer.md
-
   WHAT_WAS_IMPLEMENTED: [from implementer's report]
   PLAN_OR_REQUIREMENTS: Task N from [plan-file]
   BASE_SHA: [commit before task]
