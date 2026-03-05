@@ -22,6 +22,5 @@
     "superpowers@claude-plugins-official": true,
     "context7@claude-plugins-official": true
   },
-  "alwaysThinkingEnabled": true,
-  "effortLevel": "medium"
+  "alwaysThinkingEnabled": true
 }
