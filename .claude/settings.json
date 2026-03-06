@@ -9,7 +9,7 @@
       "Bash(sed -n)"
     ]
   },
-  "model": "opus",
+  "model": "us.anthropic.claude-opus-4-6-v1",
   "statusLine": {
     "type": "command",
     "command": "~/.claude/statusline-command.sh"

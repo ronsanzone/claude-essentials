@@ -109,10 +109,6 @@ Task 1: Hook installation script
 [Get Task 1 text and context (already extracted)]
 [Dispatch implementation subagent with full task text + context]
 
-Implementer: "Before I begin - should the hook be installed at user or system level?"
-
-You: "User level (~/.config/superpowers/hooks/)"
-
 Implementer: "Got it. Implementing now..."
 [Later] Implementer:
   - Implemented install-hook command
