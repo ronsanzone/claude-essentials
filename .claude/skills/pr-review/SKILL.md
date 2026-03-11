@@ -9,14 +9,12 @@ Multi-agent ensemble code review that returns a detailed report for human review
 
 ## Overview
 
-Launches 8 specialized Opus agents in parallel to review a PR from different angles, then uses confidence scoring to filter false positives. Returns a structured report with severity tiers instead of posting to GitHub.
+Launches 6 specialized agents in parallel to review a PR from different angles, dedupes findings, and returns a structured report with severity tiers for human review.
 
 **Key differences from code-review:code-review:**
 - Report output (you decide what to post)
-- Opus for core analysis (higher quality)
-- 70 threshold by default (configurable)
-- 8 review agents (adds security, test coverage, correctness validation)
-- Severity tiers (Critical/High/Medium/Low)
+- 6 focused review agents (consolidated for efficiency and reduced context overhead)
+- Agents self-assign severity (Critical/High/Medium/Low)
 - Executive summary + code fix examples
 - Positive observations section
 
@@ -28,7 +26,6 @@ These patterns cause context explosion and degrade review accuracy. Avoid them.
 |--------------|--------------|-----------------|
 | Using `TaskOutput` to collect agent results | Pulls full transcripts (~50KB each) including every tool call and response | Wait for agents to return naturally via the Task tool response |
 | Running agents with `run_in_background: true` | Forces TaskOutput usage to retrieve results later | Run agents in foreground; they return when complete |
-| Agents returning excessive code context | Full functions/files multiply context across 8 agents | Return issue-scoped context: 3-10 lines of problematic code + suggested fix |
 | Agents returning raw file contents | Files read during analysis leak into orchestrator context | Return findings about files, not file contents |
 
 **Key principle:** Agents can read and analyze anything internally. The constraint is what they *return* to the orchestrator — enough to be actionable, no more.
@@ -36,16 +33,15 @@ These patterns cause context explosion and degrade review accuracy. Avoid them.
 ## Usage
 
 ```
-/pr-review <github-url> [--threshold N]
-/pr-review <owner/repo> <pr-number> [--threshold N]
+/pr-review <github-url>
+/pr-review <owner/repo> <pr-number>
 ```
 
 Examples:
 - `/pr-review https://github.com/anthropics/claude-code/pull/123`
 - `/pr-review anthropics/claude-code 123`
-- `/pr-review anthropics/claude-code 123 --threshold 60`
 
-**Local Mode:** When run from a local git repository that matches the PR's repo, the skill automatically uses local git operations instead of GitHub API calls. This is faster and reduces API rate limit concerns.
+**Assumption:** Run from a local clone of the repository being reviewed. The local codebase should be reasonably up-to-date (agents use it for code search and context).
 
 ## Pipeline
 
@@ -53,31 +49,18 @@ Examples:
 digraph pr_review {
     rankdir=TB;
 
-    "Parse args" [shape=box];
-    "Detect mode" [shape=diamond];
-    "Setup worktree" [shape=box, style=dashed];
-    "Find CLAUDE.md files (Haiku)" [shape=box];
-    "Summarize PR (Haiku)" [shape=box];
-    "8 Parallel Review Agents (Opus)" [shape=box, style=bold];
-    "Confidence Scoring (Haiku per issue)" [shape=box];
-    "Filter by threshold" [shape=diamond];
-    "Assign severity tiers" [shape=box];
+    "Parse args & fetch diff" [shape=box];
+    "Find relevant docs" [shape=box];
+    "Summarize PR" [shape=box];
+    "6 Parallel Review Agents" [shape=box, style=bold];
+    "Dedupe & organize findings" [shape=box];
     "Generate Report" [shape=box, style=bold];
-    "Cleanup worktree" [shape=box, style=dashed];
-    "Report: No issues found" [shape=box];
 
-    "Parse args" -> "Detect mode";
-    "Detect mode" -> "Setup worktree" [label="local mode"];
-    "Detect mode" -> "Find CLAUDE.md files (Haiku)" [label="API mode"];
-    "Setup worktree" -> "Find CLAUDE.md files (Haiku)";
-    "Find CLAUDE.md files (Haiku)" -> "Summarize PR (Haiku)";
-    "Summarize PR (Haiku)" -> "8 Parallel Review Agents (Opus)";
-    "8 Parallel Review Agents (Opus)" -> "Confidence Scoring (Haiku per issue)";
-    "Confidence Scoring (Haiku per issue)" -> "Filter by threshold";
-    "Filter by threshold" -> "Assign severity tiers" [label="issues >= threshold"];
-    "Filter by threshold" -> "Report: No issues found" [label="no issues pass"];
-    "Assign severity tiers" -> "Generate Report";
-    "Generate Report" -> "Cleanup worktree" [label="local mode"];
+    "Parse args & fetch diff" -> "Find relevant docs";
+    "Find relevant docs" -> "Summarize PR";
+    "Summarize PR" -> "6 Parallel Review Agents";
+    "6 Parallel Review Agents" -> "Dedupe & organize findings";
+    "Dedupe & organize findings" -> "Generate Report";
 }
 ```
 
@@ -85,109 +68,131 @@ digraph pr_review {
 
 Follow these steps precisely:
 
-### Step 0: Mode Detection & Worktree Setup
+### Step 0: Parse Args & Fetch Diff
 
 **0a. Parse Input:**
 Parse owner/repo/pr-number from input. Accept either:
 - GitHub URL: `https://github.com/owner/repo/pull/123`
 - Args: `owner/repo 123`
 
-**0b. Detect Mode:**
+**0b. Fetch and Cache PR Diff:**
 ```bash
-# Check if in a git repository
-git rev-parse --git-dir 2>/dev/null
+# Fetch the full diff and save to tmp
+DIFF_FILE="/tmp/pr-review-${PR_NUMBER}.diff"
+gh pr diff -R <owner/repo> <pr-number> > "$DIFF_FILE"
 
-# If in repo, check both origin and upstream remotes
-ORIGIN_URL=$(git remote get-url origin 2>/dev/null)
-UPSTREAM_URL=$(git remote get-url upstream 2>/dev/null)
-
-# Parse owner/repo from each remote URL and compare to PR's owner/repo
+# For very large PRs, if the diff is truncated, use paginated file fetching:
+# gh api repos/<owner>/<repo>/pulls/<pr-number>/files --paginate
 ```
 
-- If in a repo AND either `origin` or `upstream` matches PR's owner/repo → **LOCAL MODE**
-- Otherwise → **API MODE**
-
-This supports fork workflows where `origin` is your fork and `upstream` is the main repo where PRs are opened.
-
-Output to user:
-- Local mode: `"Detected local repository, using local mode for faster review"`
-- API mode: `"Using GitHub API mode"`
-
-**0c. Worktree Setup (Local Mode Only):**
+**0c. Get PR Metadata:**
 ```bash
-# Create worktree directory
-WORKTREE_DIR=".pr-review-worktrees/pr-${PR_NUMBER}"
-git worktree add "$WORKTREE_DIR" --detach
-
-# Checkout PR in worktree
-cd "$WORKTREE_DIR"
-gh pr checkout $PR_NUMBER
-
-# Capture base branch for diff comparison
-# Use the remote that matches the PR's repo (origin or upstream)
-MATCHING_REMOTE="origin"  # or "upstream" if that matched
-BASE_BRANCH=$(gh pr view $PR_NUMBER --json baseRefName -q .baseRefName)
-BASE_SHA=$(git merge-base HEAD ${MATCHING_REMOTE}/${BASE_BRANCH})
+gh pr view -R <owner/repo> <pr-number> --json title,body,baseRefName,headRefName,author
 ```
-
-If worktree setup fails, fall back to API mode with a warning.
 
 **Context for subsequent steps:**
-- Local mode: `worktree_path`, `base_sha`, `mode: "local"`
-- API mode: `owner`, `repo`, `pr_number`, `mode: "api"`
+- `diff_file`: Path to cached diff (`/tmp/pr-review-${PR_NUMBER}.diff`)
+- `owner`, `repo`, `pr_number`: PR identifiers
+- `pr_title`, `pr_body`: PR metadata
+- Local codebase is available for code search (may not exactly match PR head)
 
-### Step 1: Find CLAUDE.md Files (Haiku)
+### Step 1: Find Relevant Documentation
 
-Launch a Haiku agent to find all relevant CLAUDE.md files:
+Find all relevant CLAUDE.md files and linked docs:
+
+**1a. Find CLAUDE.md files:**
 - Root CLAUDE.md (if exists)
 - CLAUDE.md files in directories modified by the PR
 
-**Local mode:** Use `git diff $BASE_SHA...HEAD --name-only` to find modified directories, then search for CLAUDE.md files directly in the worktree.
+Extract modified directories from the cached diff file, then search locally for CLAUDE.md files in those directories.
 
-**API mode:** Use `gh pr diff -R <owner/repo> <pr-number>` to identify modified files.
+**1b. Progressive discovery of linked docs:**
+Many CLAUDE.md files link to additional documentation (e.g., `docs/frontend-standards.md`, `docs/api-conventions.md`). Scan the found CLAUDE.md files for links to other docs and include those that are relevant to the PR.
 
-Return file paths only, not contents.
+Relevance signals:
+- Doc name matches PR domain (frontend PR → frontend docs, API PR → API docs)
+- Doc is in a directory modified by the PR
+- Doc is explicitly referenced in context of the changed code
 
-### Step 2: Summarize PR (Haiku)
+Example: If reviewing a React component PR and CLAUDE.md links to `docs/component-guidelines.md`, include it.
 
-Launch a Haiku agent to get PR metadata and diff:
+**Return:** List of all relevant doc paths (CLAUDE.md files + linked docs)
 
-**Local mode:**
-```bash
-gh pr view <pr-number>  # Still need API for PR title/description
-git diff $BASE_SHA...HEAD  # Local diff
-```
+### Step 2: Summarize PR
 
-**API mode:**
-```bash
-gh pr view -R <owner/repo> <pr-number>
-gh pr diff -R <owner/repo> <pr-number>
-```
+Using the PR metadata from Step 0 and the cached diff file, generate a 2-3 sentence summary of what the PR does.
 
-Return a 2-3 sentence summary of what the PR does.
+This summary will be passed to all review agents for context.
 
-### Step 3: Parallel Review Agents (8x Opus)
+### Step 3: Parallel Review Agents
 
-Launch 8 Opus agents in parallel. Each returns a list of issues with:
+Launch 6 agents in parallel. Each returns a list of issues with:
 - Issue description
 - File and line reference
 - Reason flagged (CLAUDE.md, bug, history, security, etc.)
 - Suggested fix (concrete code example when possible)
+- **Why it matters** (consequence if not addressed)
+- **Alternative approaches** (when applicable)
 
-**Mode-specific operations for all agents:**
+**Guidance for ALL agents:**
 
-| Operation | Local Mode | API Mode |
-|-----------|------------|----------|
-| Get diff | `git diff $BASE_SHA...HEAD` | `gh pr diff -R owner/repo N` |
-| Read files | Direct file read in worktree | `gh api` or file fetch |
-| Git blame | `git blame <file>` | `gh api` |
-| Git log | `git log --oneline <file>` | `gh api` |
+Each agent MUST follow these principles when analyzing and reporting issues:
 
-**Agent #1: CLAUDE.md Compliance**
-Audit changes against all CLAUDE.md files found in Step 1. Note that CLAUDE.md is guidance for writing code, so not all instructions apply during review.
+| Principle | What It Means |
+|-----------|---------------|
+| **Explain reasoning** | Don't just flag issues — explain *why* it's a problem and what consequences follow if not addressed |
+| **Provide alternatives** | When suggesting fixes, offer alternative approaches when multiple valid solutions exist |
+| **Balance pragmatism** | Focus on changes that provide meaningful value; avoid perfectionism that doesn't serve the PR's goals |
+| **Consider system context** | Think about broader architectural implications, not just the isolated code change |
+| **Be direct and actionable** | Every issue should tell the reviewer exactly what to do and why |
 
-**Agent #2: Bug & Error Handling Scan**
-Read file changes and scan for:
+**Issue return format for all agents:**
+```
+Issue: <concise description>
+Severity: <Critical | High | Medium | Low>
+File: <path:line>
+Why it matters: <consequence if not addressed>
+Suggested fix: <concrete code or approach>
+Alternative: <other valid approach, if any>
+```
+
+**Severity guidelines for agents:**
+- **Critical**: Security vulnerability, will cause runtime failure, data loss
+- **High**: Logic bug, violates documented standards, breaks functionality
+- **Medium**: Code quality issue, missing error handling, performance concern
+- **Low**: Style/convention issue, minor improvement suggestion
+
+**Context passed to ALL agents:**
+- `diff_file`: Path to cached PR diff (read this instead of calling `gh pr diff`)
+- `pr_summary`: 2-3 sentence summary of what the PR does
+- `doc_paths`: List of relevant documentation (CLAUDE.md files + linked docs from Step 1)
+- `owner`, `repo`, `pr_number`: PR identifiers
+
+**Available resources for ALL agents:**
+- **Cached diff:** Read from `diff_file` — do NOT call `gh pr diff` again
+- **Local codebase:** Use local file reads and search (Grep, Glob) for code context. Note: local files may not exactly match PR head, but are close enough for context
+- **Git operations:** `git blame`, `git log` work on local repo
+- **GitHub API:** Use `gh api` for PR comments, related PRs, or other GitHub-specific data
+
+**Agent #1: Documentation Compliance**
+Audit changes against all documented guidance:
+
+*Project documentation (from Step 1):*
+- CLAUDE.md files and any linked docs (e.g., `frontend-standards.md`, `api-conventions.md`)
+- Project-specific conventions and standards
+- Required patterns or forbidden anti-patterns
+- Note: these are guidance for writing code, so not all instructions apply during review
+
+*Inline code documentation:*
+- TODO comments that conflict with changes
+- Warning comments being ignored
+- Invariant comments being violated
+- Documentation that contradicts the implementation
+
+Flag when code violates documented guidance. Include the specific documentation reference (file path and relevant section).
+
+**Agent #2: Bug, Error Handling & Test Coverage**
+Analyze code reliability and test coverage together:
 
 *Bugs:*
 - Logic errors and off-by-one mistakes
@@ -203,37 +208,45 @@ Read file changes and scan for:
 - Error messages that leak sensitive information
 - Failure recovery paths that leave inconsistent state
 
+*Test Coverage:*
+- New functions without corresponding tests
+- Modified logic without updated tests
+- Error handling paths without test coverage
+- Edge cases identified above without tests
+
+When flagging a bug or error handling issue, note whether it has test coverage. When flagging missing tests, prioritize based on the risk of the untested code.
+
 Focus on the diff only, not surrounding context. Target significant issues, avoid nitpicks. Ignore likely false positives.
 
-**Agent #3: Git History Context**
-Read git blame and history of modified code. Identify bugs considering historical context and original intent.
-
-**Local mode:** Use `git blame <file>` and `git log --oneline -10 <file>` directly.
-**API mode:** Use `gh api` to fetch blame and history.
-
-**Agent #4: Previous PR Comments**
-Read previous PRs that touched these files. Check for comments that may apply to current changes.
-
-**Note:** This agent always uses GitHub API (both modes) since historical PR comments require API access.
-
-**Agent #5: Code Comment Compliance**
-Read code comments in modified files. Ensure changes comply with guidance in comments (TODOs, warnings, invariants).
-
-**Agent #6: Security Analysis**
+**Agent #3: Security Analysis**
 Scan for security vulnerabilities:
 - Injection risks (SQL, command, XSS)
 - Authentication/authorization flaws
 - Data exposure issues
 - Insecure defaults
 - Missing input validation
+- Secrets or credentials in code
+- Insecure cryptographic practices
 
-**Agent #7: Test Coverage Check**
-Verify that code changes have corresponding test changes:
-- New functions should have tests
-- Modified logic should have updated tests
-- Check for test file changes alongside source changes
+Security issues should always be flagged regardless of test coverage or other factors.
 
-**Agent #8: Correctness Validation**
+**Agent #4: Historical Context**
+Analyze git history and previous PR feedback:
+
+*Git history analysis:*
+- Use `git blame <file>` to understand original intent of modified code
+- Use `git log --oneline -10 <file>` to see evolution of the code
+- Identify if changes contradict the original design intent
+- Check if similar changes were previously reverted
+
+*Previous PR comments:*
+- Use `gh api` to find PRs that touched these files
+- Check for reviewer feedback that applies to current changes
+- Identify recurring issues that weren't addressed
+
+Flag issues where history provides important context the author may have missed.
+
+**Agent #5: Correctness Validation**
 Verify that the code changes actually solve the stated problem.
 
 *Inputs:*
@@ -257,45 +270,55 @@ Verify that the code changes actually solve the stated problem.
 - Refactoring PRs where "correctness" is subjective
 - Trivial changes (typo fixes, version bumps)
 
-### Step 4: Confidence Scoring (Haiku per issue)
+**Agent #6: Code Quality**
+Evaluate performance, design patterns, and best practices:
 
-For each issue from Step 3, launch a parallel Haiku agent with:
-- The PR details
-- Issue description
-- CLAUDE.md file paths from Step 1
+*Performance:*
+- O(n²) or worse complexity where O(n) is possible
+- Unnecessary iterations or redundant computations
+- N+1 query patterns in database access
+- Missing batching for API calls
+- Memory leaks or unbounded growth
+- Missing cleanup of resources (connections, file handles, subscriptions)
+- Blocking operations in async contexts
+- Frontend: unnecessary re-renders, large bundle imports, missing virtualization
 
-Score each issue 0-100 using this rubric (give verbatim to agent):
+*Design quality:*
+- Single Responsibility: Does each function/class do one thing well?
+- Naming: Do names reveal intent? Are they consistent with codebase conventions?
+- Abstraction level: Is code at a consistent level of abstraction?
+- Coupling: Are dependencies explicit and minimal?
 
-| Score | Meaning |
-|-------|---------|
-| **0** | False positive. Doesn't hold up to scrutiny, or pre-existing issue. |
-| **25** | Might be real, couldn't verify. Stylistic issue not in CLAUDE.md. |
-| **50** | Verified real but nitpicky. Not important relative to PR. |
-| **75** | Verified real, will be hit in practice. Important or in CLAUDE.md. |
-| **100** | Definitely real, frequent in practice. Evidence confirms. |
+*Language idioms:*
+- Using language features appropriately (destructuring, optionals, pattern matching)
+- Following community conventions for the language/framework
+- Avoiding language-specific anti-patterns
 
-For CLAUDE.md issues, agent must verify the file actually calls out that issue.
+*Framework conventions:*
+- Following established patterns for React, Vue, Angular, etc.
+- Proper use of hooks, lifecycle methods, state management
+- Component composition and prop design
+- Accessibility best practices (ARIA, semantic HTML, keyboard navigation)
 
-### Step 5: Filter by Threshold
+*Maintainability:*
+- Would a new team member understand this code?
+- Magic numbers or strings that should be constants?
+- Duplicated logic that should be extracted?
+- Overly nested conditionals?
 
-Default threshold: **70** (configurable via `--threshold N`)
+Focus on issues that will be hit in practice, not theoretical concerns. Do NOT flag purely aesthetic style issues (formatting, bracket placement).
 
-Filter out issues scoring below threshold.
+### Step 4: Dedupe & Organize Findings
 
-If no issues pass, generate "No issues found" report and stop.
+Collect all issues from the 6 agents and:
 
-### Step 6: Assign Severity Tiers
+1. **Dedupe**: If multiple agents flagged the same issue (same file/line, similar description), merge into one finding and note which agents flagged it
+2. **Group by severity**: Organize findings into Critical, High, Medium, Low sections
+3. **Group by file**: Within each severity, group findings by file for easier navigation
 
-Categorize passing issues:
+If no issues were found, note this in the report.
 
-| Tier | Criteria |
-|------|----------|
-| **Critical** | Score 95+, or security vulnerability, or will cause runtime failure |
-| **High** | Score 85-94, or CLAUDE.md violation, or logic bug |
-| **Medium** | Score 75-84, or code quality issue |
-| **Low** | Score 70-74, or style/convention issue |
-
-### Step 7: Generate Report
+### Step 5: Generate Report
 
 Output a structured report (do NOT post to GitHub):
 
@@ -319,13 +342,12 @@ Examples:
 
 ### Statistics
 - Issues found: X (Y critical, Z high, W medium, V low)
-- Issues filtered (below threshold): N
 - Agents that found issues: [list]
 
 ### Critical Issues
-1. **<description>** (Source: <agent>, Score: <N>)
+1. **<description>** (Source: <agent>)
    - File: `path/to/file.go:123`
-   - Reason: <why this is a problem>
+   - Why it matters: <consequence if not addressed>
    - Suggested fix:
      ```go
      // concrete code example showing the fix
@@ -350,22 +372,13 @@ Examples:
 - `path/to/file1.go`
 - `path/to/file2.ts`
 
-### CLAUDE.md Files Consulted
+### Documentation Consulted
 - `CLAUDE.md`
 - `src/CLAUDE.md`
+- `docs/frontend-standards.md`
 ```
 
 **Note on code examples:** Suggested fixes are best-effort. If the fix is architectural or context-dependent, describe the approach instead of providing literal code. The goal is actionability — the reviewer should know exactly what to do.
-
-### Step 8: Cleanup (Local Mode Only)
-
-After the report is generated, clean up the worktree:
-
-```bash
-git worktree remove "$WORKTREE_DIR" --force
-```
-
-If cleanup fails, log a warning but don't fail the review (non-blocking).
 
 ## False Positive Examples
 
@@ -382,43 +395,37 @@ Instruct agents to ignore:
 ## Notes
 
 - Do NOT build or typecheck - CI handles that
-- In local mode, prefer local git commands over `gh` commands where possible
-- In API mode, use `gh` for all GitHub interaction
+- Agents should read from the cached diff file, not call `gh pr diff` again
+- Use local git commands (`git blame`, `git log`) for history
+- Use `gh api` for GitHub-specific data (PR comments, related PRs)
 - Create a todo list before starting
 - Cite and link each issue (CLAUDE.md references must include link)
 - GitHub links require full SHA: `https://github.com/owner/repo/blob/<full-sha>/path/file.go#L10-L15`
 - Line range format: `L[start]-L[end]`
 - Include 1+ lines of context around the issue line
-- Worktrees are created in `.pr-review-worktrees/` and cleaned up automatically
+- Cached diff is stored in `/tmp/pr-review-${PR_NUMBER}.diff`
 
 ## Quick Reference
 
-| Mode | Trigger | Benefits |
-|------|---------|----------|
-| Local | In git repo matching PR's repo | Faster, fewer API calls |
-| API | Not in repo or different repo | Works from anywhere |
-
-| Component | Model | Purpose |
-|-----------|-------|---------|
-| Mode detector | - | Choose local vs API mode |
-| CLAUDE.md finder | Haiku | Locate project standards |
-| Summarizer | Haiku | PR overview |
-| Reviewers (8x) | Opus | Deep analysis |
-| Scorers (per issue) | Haiku | Confidence calibration |
+| Component | Purpose |
+|-----------|---------|
+| Diff fetcher | Cache PR diff to `/tmp` |
+| Doc finder | Locate CLAUDE.md + linked docs |
+| Summarizer | PR overview |
+| Reviewers (6x) | Deep analysis with self-assigned severity |
 
 | Agent | Focus |
 |-------|-------|
-| #1 | CLAUDE.md Compliance |
-| #2 | Bug & Error Handling Scan |
-| #3 | Git History Context |
-| #4 | Previous PR Comments |
-| #5 | Code Comment Compliance |
-| #6 | Security Analysis |
-| #7 | Test Coverage Check |
-| #8 | Correctness Validation |
+| #1 | Documentation Compliance (CLAUDE.md + linked docs + inline comments) |
+| #2 | Bug, Error Handling & Test Coverage |
+| #3 | Security Analysis |
+| #4 | Historical Context (git history + previous PR comments) |
+| #5 | Correctness Validation |
+| #6 | Code Quality (performance + patterns + best practices) |
 
-| Default | Value |
-|---------|-------|
-| Threshold | 70 |
-| Review agents | 8 |
-| Scoring rubric | 0-100 |
+| Severity | Criteria |
+|----------|----------|
+| Critical | Security vulnerability, runtime failure, data loss |
+| High | Logic bug, violates standards, breaks functionality |
+| Medium | Code quality, missing error handling, performance |
+| Low | Style/convention, minor improvements |
