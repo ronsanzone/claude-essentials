@@ -82,7 +82,27 @@ many files. For INCOMPLETE, document what WAS found and what remains ambiguous.
 ### Step 5: Cross-reference
 Identify overlapping answers, contradictions, and cross-cutting patterns.
 
-### Step 6: Write artifact
+### Step 6: Build structured summary
+Synthesize findings into tagged categories. This summary is based ONLY on what
+the questions asked about — you have no task context, so do not filter by
+"relevance." Summarize everything you investigated.
+
+**System State (as investigated)**
+- Distill the current state of the systems/components that the questions covered.
+  Include file:line references. Focus on factual descriptions of what exists.
+
+**Patterns Found**
+- Extract concrete code patterns discovered while answering questions.
+  Format: `<pattern name> — file:line — <brief description>`
+- Include: naming conventions, architectural patterns, integration patterns,
+  test patterns — anything structural that was observed.
+
+**Constraints & Invariants**
+- Document any constraints, invariants, or rules enforced by the investigated
+  code. Include: validation rules, type constraints, test assertions, config
+  requirements.
+
+### Step 7: Write artifact
 Write `02-research.md` to the artifact directory:
 ```yaml
 ---
@@ -114,6 +134,20 @@ status: complete
 
 ## Cross-References
 - <overlaps, contradictions, patterns>
+
+## Structured Summary
+
+### System State (as investigated)
+- <factual description of current system state for investigated components>
+- <include file:line references>
+
+### Patterns Found
+- <pattern name> — `file:line` — <brief description>
+- ...
+
+### Constraints & Invariants
+- <constraint> — <source/file:line>
+- ...
 ```
 
 ## Completion

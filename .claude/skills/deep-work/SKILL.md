@@ -99,7 +99,7 @@ The original prompt is re-introduced in Phase 3, after research is locked in.
 | `00-ticket.md` | Phase 1 | Phase 3 |
 | `01-research-questions.md` | Phase 1 | None (user copies questions manually) |
 | `02-research.md` | Phase 2 | Phases 3, 4, 5 |
-| `03-design-discussion.md` | Phase 3 | Phase 4 |
+| `03-design-discussion.md` | Phase 3 | Phases 4, 5 |
 | `04-structure-outline.md` | Phase 4 | Phase 5 |
 | `05-plan.md` | Phase 5 | Phase 6 |
 | `06-completion.md` | Phase 6 | None |

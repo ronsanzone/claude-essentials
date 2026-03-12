@@ -25,13 +25,21 @@ without the "how exactly." A table of contents for the implementation plan.
 ## Process
 
 ### Step 1: Load context
-1. Read `03-design-discussion.md` — focus on CHOSEN decisions, constraints, scope
-2. Read `02-research.md` — focus on file paths, patterns, code locations
+1. Read `03-design-discussion.md` — extract:
+   - **Summary of Changes Requested** — the goal driving all phases
+   - **Current State** — validates the starting point for changes
+   - **Desired End State** — this is the target the outline maps toward
+   - **What We're Not Doing** — scope boundaries (carried forward to outline)
+   - **Patterns to Follow** — these become the pattern references for file changes
+   - **Design Questions (decided)** — each decision maps to concrete file changes
+   - **Constraints Discovered** — hard limits on implementation
+2. Read `02-research.md` — focus on file paths and code locations for line ranges
 
 ### Step 2: Map decisions to file changes
-For each CHOSEN decision, determine:
+For each decided design question, determine:
 - Files to create (NEW), modify (MODIFY with line ranges from research), or delete (DELETE)
 - Brief description of what changes in each file
+- Which pattern from "Patterns to Follow" applies (reference by name)
 
 ### Step 3: Group into phases
 Organize changes into sequential phases where:

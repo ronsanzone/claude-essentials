@@ -34,8 +34,15 @@ Assume they are a skilled developer, but know almost nothing about our toolset o
 
 ### Step 1: Load context
 1. Read `00-ticket.md` — initial prompt and context on the changes we're making
-2. Read `02-research.md` — code patterns and file:line references
-3. Read `03-design-discussion.md` — chosen design decisions
+2. Read `03-design-discussion.md` — the primary source for:
+   - Decided design questions and their implementation implications
+   - **Patterns to Follow** — use these as the authoritative pattern references
+     for tasks (preferred over raw research patterns, since these were explicitly
+     chosen during design discussion)
+   - Current State / Desired End State — frames the overall goal
+   - Constraints — hard limits on implementation
+3. Read `02-research.md` — file:line references and detailed code context
+   (supplement patterns from design artifact, don't override them)
 4. Read `04-structure-outline.md` — phase structure and file map
 
 ### Step 2: Expand phases into tasks

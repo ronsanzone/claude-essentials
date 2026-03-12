@@ -30,9 +30,39 @@ the prompt safely re-enters the pipeline here.
 2. Read `00-ticket.md` completely
 3. Summarize: "The user wants to [goal from ticket]. Research found [key findings]."
 
-### Step 2: Identify design decisions
-Based on the gap between "what the user wants" and "what exists," identify every
-design decision. Common types:
+### Step 2: Synthesize context into design sections
+
+Before identifying decisions, distill research into structured sections:
+
+**Summary of Changes Requested**
+- Restate the ticket goal concisely — what are we doing and why?
+
+**Current State**
+- From research findings, extract the parts of the system that are relevant to the
+  requested changes. Include file:line references. Focus on what exists today that
+  the changes will touch, integrate with, or depend on.
+- Pull from the research's "Structured Summary > System State" section if available,
+  then filter to only what's relevant to the ticket.
+
+**Desired End State**
+- Combine the ticket goal with current state to describe concretely what the system
+  looks like after the changes. Be specific — name the files, APIs, behaviors.
+
+**What We're Not Doing**
+- Identify explicit scope boundaries. What might a reader assume is included but isn't?
+  What adjacent changes are we deferring?
+
+**Patterns to Follow**
+- From research findings (especially Pattern Discovery and Code Tracing answers),
+  extract concrete codebase patterns that implementation should mirror.
+- Each pattern MUST include file:line references to exemplar code.
+- Pull from the research's "Structured Summary > Patterns Found" section if available.
+- In brownfield codebases, there may be multiple patterns — choose which to follow
+  and note why.
+
+### Step 3: Identify design questions
+Based on the gap between "current state" and "desired end state," identify every
+design question that needs resolution. Common types:
 - Where should new code live? (module/package/directory)
 - What pattern should it follow? (based on existing patterns from research)
 - How should it integrate with existing code? (based on boundaries from research)
@@ -40,26 +70,23 @@ design decision. Common types:
 - How should edge cases be handled?
 - What should be tested and how?
 
-### Step 3: Build options
-For EACH decision, create 2-4 options. Every option MUST:
+### Step 4: Build options
+For EACH question, create 2-4 options. Every option MUST:
 - Cite a specific research finding (e.g., "Research Q2 found that...")
 - Include concrete pros and cons
 - Be grounded in what exists in the codebase
 
-**FORBIDDEN:** Options that ignore research findings or require uninvestigated changes.
+Include your **recommendation** with rationale for each question.
 
-### Step 4: Present decisions interactively
-Present ONE AT A TIME via AskUserQuestion:
-- Show context (relevant research findings)
-- Present options table with pros/cons
-- Include your recommendation with rationale
-- Record user's choice as CHOSEN, others as REJECTED
+**FORBIDDEN:** Options that ignore research findings or require uninvestigated changes.
 
 ### Step 5: Surface risks
 Compile: constraints from research, INCOMPLETE research gaps, out-of-scope items.
 
-### Step 6: Write artifact
-Write `03-design-discussion.md` to the artifact directory:
+### Step 6: Write draft design artifact
+Write `03-design-discussion.md` to the artifact directory with ALL sections
+populated and design questions marked as OPEN:
+
 ```yaml
 ---
 phase: design-discussion
@@ -69,28 +96,91 @@ repo: <repo>
 git_sha: <HEAD>
 input_artifacts: [00-ticket.md, 02-research.md]
 decisions_count: <N>
-status: complete
+open_questions: <N>
+status: draft
 ---
+```
 
-## Goal
-<restated from ticket, grounded in research findings>
+```markdown
+## Summary of Changes Requested
+<distilled from ticket — concise statement of what and why>
 
-## Design Decisions
+## Current State
+<relevant system state from research, with file:line refs>
+<only what the changes will touch, integrate with, or depend on>
 
-### Decision 1: <title>
+## Desired End State
+<concrete description of the system after changes>
+<name files, APIs, behaviors>
+
+## What We're Not Doing
+<explicit scope boundaries and deferred work>
+
+## Patterns to Follow
+- **<pattern name>** — `file:line` — <brief description of when/how to use>
+- ...
+
+## Design Questions
+
+### DQ-1: <title>
 **Context:** <relevant research findings>
 
-| Option | Description | Pros | Cons | Verdict |
-|--------|-------------|------|------|---------|
-| A | ... | <citing research> | ... | **CHOSEN** |
-| B | ... | <citing research> | ... | REJECTED |
+| Option | Description | Pros | Cons |
+|--------|-------------|------|------|
+| A | ... | <citing research> | ... |
+| B | ... | <citing research> | ... |
 
-**Rationale:** <why chosen option was selected>
+**Recommendation:** <option and rationale>
+**Decision:** OPEN
+
+### DQ-2: <title>
+...
 
 ## Constraints Discovered
+<from research findings>
+
 ## Risks from Incomplete Research
-## Out of Scope
+<INCOMPLETE questions and their implications>
 ```
+
+### Step 7: Present and resolve questions
+
+Present a summary of the design document to the user, then ask via AskUserQuestion:
+
+> "Design document written to `03-design-discussion.md` with N open questions.
+> How would you like to resolve them?
+>
+> 1. **Batch** — Review the document, then answer all questions in one response
+>    (reference by ID, e.g. 'DQ-1: A, DQ-3: B')
+> 2. **Interactive** — I'll walk through each question one at a time
+> 3. **Accept recommendations** — Use my recommendations for all open questions"
+
+Execute the chosen path:
+
+**Batch mode:**
+- Tell user to review the doc and respond with their choices
+- Parse their response and update each question's Decision field
+- For each resolved question, add:
+  - `**Decision:** <chosen option>`
+  - `**Rationale:** <from user's response or recommendation>`
+  - `**Implementation implication:** <one-liner about what this means for implementation>`
+
+**Interactive mode:**
+- Present ONE question at a time via AskUserQuestion
+- Show context, options table, and recommendation
+- Record user's choice, then move to next question
+- After each answer, update the question's Decision field with rationale and
+  implementation implication
+
+**Accept recommendations mode:**
+- Resolve all OPEN questions using the stated recommendations
+- Add rationale and implementation implication for each
+
+### Step 8: Finalize artifact
+After all questions are resolved:
+1. Update all `OPEN` decisions to show the chosen option
+2. Update frontmatter: `open_questions: 0`, `status: complete`
+3. Write the finalized `03-design-discussion.md`
 
 ## Completion
 
