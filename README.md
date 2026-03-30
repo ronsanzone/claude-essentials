@@ -1,36 +1,98 @@
 # Claude Essentials
 
-A collection of Claude Code customizations including global instructions, agents, skills, commands, and utility scripts for enhanced AI-assisted development.
+A collection of Claude Code customizations including global instructions, agents, skills, and utility scripts for enhanced AI-assisted development.
 
-## What's Included
+## Skills Overview
 
-### Core Configuration
-- **CLAUDE.md** - Global development instructions and workflow guidelines
-- **settings.json** - Model configuration and plugin settings
-- **settings.local.json.example** - Template for local permissions
+### Deep-Work Pipeline
 
-### Rules
-- **go-standards.md** - Go development standards with automated enforcement
+A 6-phase context engineering workflow that separates research from solutioning. Each phase runs in a fresh conversation to maintain context isolation, producing structured artifacts that flow into the next phase.
 
-### Skills (3)
-- **tmux-stalker** - Read content from tmux panes for context gathering
-- **tmux-stalker-summarized** - Summarize tmux content efficiently
-- **log-analysis** - Direct log analysis tools for Splunk JSON exports
+```mermaid
+flowchart TD
+    A["Phase 1: Research Questions\n/dw-01-research-questions\n→ 01-research-questions.md"]
+    B["Phase 2: Research\n/dw-02-research\n→ 02-research.md"]
+    C["Phase 3: Design Discussion\n/dw-03-design-discussion\n→ 03-design-discussion.md"]
+    D["Phase 4: Structure Outline\n/dw-04-outline\n→ 04-structure-outline.md"]
+    E["Phase 5: Plan\n/dw-05-plan\n→ 05-plan.md"]
+    F1["Phase 6A: Implement\n/dw-06a-implement\nSingle-session + review"]
+    F2["Phase 6B: Implement\n/dw-06b-implement-subagents\nPer-task subagents + 2-stage review"]
+    F3["Phase 6: Implement\n/dw-06-implement\nFlexible delegation"]
+    FW{{"🔥 Bias Firewall 🔥\nUser copies ONLY questions\nto fresh conversation"}}
+    PR(("Original prompt\nre-introduced"))
 
-### Agents (5)
-- **codebase-analyzer** - Analyze implementation details with file:line references
-- **codebase-locator** - Find files and components by feature/topic
-- **codebase-pattern-finder** - Find similar implementations and patterns
-- **splunk-analyzer** - Analyze Splunk JSON logs for patterns and errors
-- **web-search-researcher** - Deep web research for technical topics
+    A --> FW --> B
+    B --> PR --> C
+    C --> D --> E
+    E --> F1
+    E --> F2
+    E --> F3
+```
 
-### Commands (2)
-- **crux** - Detailed code review for local files
-- **crux_gh** - Code review for GitHub pull requests
+Use `/deep-work <slug>` to check pipeline progress or start a new task.
 
-### Scripts
-- **log_analysis_lib.py** - Python library for log analysis
-- **example_commands.md** - Usage examples for log analysis
+#### Phase Details
+
+| Phase | Skill | Purpose | Key Output |
+|-------|-------|---------|------------|
+| 1 | `dw-01-research-questions` | Decompose task into 5-15 objective research questions (no solutioning) | `01-research-questions.md` |
+| 2 | `dw-02-research` | Answer questions by investigating the codebase objectively — cannot read the original prompt | `02-research.md` |
+| 3 | `dw-03-design-discussion` | Combine research with original prompt; explore design options, evaluate tradeoffs, make decisions | `03-design-discussion.md` |
+| 4 | `dw-04-outline` | Map design decisions to concrete file changes organized into implementable phases | `04-structure-outline.md` |
+| 5 | `dw-05-plan` | Expand outline into fully detailed plan — every task has enough detail that the implementing agent makes no design decisions | `05-plan.md` |
+| 6A | `dw-06a-implement` | Execute plan in single session: batches of 3 tasks → report → continue/apply feedback → final code review | `06-completion.md` |
+| 6B | `dw-06b-implement-subagents` | Fresh subagent per task with two-stage review (spec compliance → code quality) | `06-completion.md` |
+| 6 | `dw-06-implement` | Flexible: choose subagent-driven, parallel session, or manual execution | `06-completion.md` |
+
+All artifacts are stored in `~/notes/context-engineering/<repo>/<topic-slug>/` with a `.state.json` file tracking phase completion.
+
+---
+
+### Code Review & PR Skills
+
+| Skill | Command | Purpose |
+|-------|---------|---------|
+| **pr-review** | `/pr-review <github-url>` | Multi-agent ensemble review — 6 parallel agents (docs compliance, bugs, security, history, correctness, quality) produce a report for human review before posting |
+| **quick-review** | `/quick-review <owner/repo> <pr>` | Single-pass expert review with severity-ranked findings (critical → minor) |
+| **pr-description** | `/pr-description [context-files...]` | Generate reviewer-focused PR descriptions from git changes; finds and fills PR templates |
+| **session-retrospective** | `/session-retrospective` | Analyze session process efficiency — scores context engineering, tool usage, sub-agent work, and cost efficiency (1-5) |
+
+---
+
+### Terminal & Debugging
+
+| Skill | Command | Purpose |
+|-------|---------|---------|
+| **tmux-stalker** | `/tmux-stalker` | Read content from any tmux pane — useful for checking long-running processes, reviewing logs, debugging across sessions |
+| **tmux-stalker-summarized** | `/tmux-stalker-summarized` | Context-efficient summaries of tmux pane content (test output, stack traces, logs) |
+
+---
+
+### Design & Architecture
+
+| Skill | Command | Purpose |
+|-------|---------|---------|
+| **software-design-philosophy** | `/software-design-philosophy` | Evaluate code or designs against 15 principles and 14 red flags from "A Philosophy of Software Design" |
+
+---
+
+### Utility Skills
+
+| Skill | Command | Purpose |
+|-------|---------|---------|
+| **generate-postman-collection** | `/generate-postman-collection` | Generate Postman v2.1 collection JSON from OpenAPI specs or Java source code |
+
+---
+
+## Agents
+
+| Agent | Purpose |
+|-------|---------|
+| **codebase-analyzer** | Analyze implementation details with file:line references |
+| **codebase-locator** | Find files and components by feature or topic |
+| **codebase-pattern-finder** | Find similar implementations, usage examples, and existing patterns |
+| **splunk-analyzer** | Analyze Splunk JSON logs for patterns, errors, and request flows |
+| **web-search-researcher** | Deep web research combining search with internal documentation |
 
 ## Quick Start
 
@@ -69,27 +131,35 @@ claude-essentials/
 ├── README.md
 ├── INSTALL.md
 ├── .claude/
-│   ├── CLAUDE.md              # Global instructions
-│   ├── settings.json          # Model/plugin config
-│   ├── settings.local.json    # Permissions (gitignored)
+│   ├── CLAUDE.md                        # Global instructions
+│   ├── settings.json                    # Model/plugin config
 │   ├── settings.local.json.example
-│   ├── rules/
-│   │   └── go-standards.md
+│   ├── docs/
+│   │   └── software-design-philosophy.md
 │   ├── skills/
+│   │   ├── deep-work/                   # Pipeline orchestrator
+│   │   ├── dw-01-research-questions/    # Phase 1
+│   │   ├── dw-02-research/              # Phase 2
+│   │   ├── dw-03-design-discussion/     # Phase 3
+│   │   ├── dw-04-outline/               # Phase 4
+│   │   ├── dw-05-plan/                  # Phase 5
+│   │   ├── dw-06-implement/             # Phase 6 (flexible)
+│   │   ├── dw-06a-implement/            # Phase 6A (single-session)
+│   │   ├── dw-06b-implement-subagents/  # Phase 6B (subagents)
+│   │   ├── pr-description/
+│   │   ├── pr-review/
+│   │   ├── quick-review/
+│   │   ├── session-retrospective/
+│   │   ├── software-design-philosophy/
+│   │   ├── generate-postman-collection/
 │   │   ├── tmux-stalker/
-│   │   │   └── SKILL.md
-│   │   ├── tmux-stalker-summarized/
-│   │   │   └── skill.md
-│   │   └── log-analysis.md
-│   ├── agents/
-│   │   ├── codebase-analyzer.md
-│   │   ├── codebase-locator.md
-│   │   ├── codebase-pattern-finder.md
-│   │   ├── splunk-analyzer.md
-│   │   └── web-search-researcher.md
-│   └── commands/
-│       ├── crux.md
-│       └── crux_gh.md
+│   │   └── tmux-stalker-summarized/
+│   └── agents/
+│       ├── codebase-analyzer.md
+│       ├── codebase-locator.md
+│       ├── codebase-pattern-finder.md
+│       ├── splunk-analyzer.md
+│       └── web-search-researcher.md
 └── scripts/
     ├── log_analysis_lib.py
     ├── example_commands.md
@@ -98,19 +168,8 @@ claude-essentials/
 
 ## Customization
 
-### Adding New Rules
-Create a markdown file in `.claude/rules/` with frontmatter specifying file globs:
-```yaml
----
-globs:
-  - "**/*.py"
----
-# Python Standards
-...
-```
-
 ### Adding New Skills
-Create a markdown file in `.claude/skills/` with frontmatter:
+Create a directory in `.claude/skills/` with a markdown file containing frontmatter:
 ```yaml
 ---
 name: my-skill
@@ -134,7 +193,7 @@ model: sonnet
 - Claude Code CLI
 - Python 3.8+ (for log analysis scripts)
 - tmux (for tmux-stalker skills)
-- gh CLI (for GitHub-related commands)
+- gh CLI (for PR review skills)
 
 ## License
 
