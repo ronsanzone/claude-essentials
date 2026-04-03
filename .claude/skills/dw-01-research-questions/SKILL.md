@@ -108,13 +108,13 @@ digraph handoff {
     node [shape=box, style=rounded, fontname="Helvetica"];
 
     p1_out [label="01-research-questions.md\n(contains prompt + questions)"];
-    user [label="User copies\nquestions ONLY" shape=diamond style=filled fillcolor="#ffffcc"];
-    firewall [label="🔥 BIAS FIREWALL 🔥" shape=octagon style=filled fillcolor="#ff4444" fontcolor=white];
-    p2_in [label="Pasted questions\n(NO prompt, NO file read)"];
+    user [label="User reviews &\nedits questions" shape=diamond style=filled fillcolor="#ffffcc"];
+    script [label="extract-research-questions.sh" shape=octagon style=filled fillcolor="#ff4444" fontcolor=white];
+    p2_in [label="Questions only\n(prompt never exposed)"];
 
     p1_out -> user [label="review & edit"];
-    user -> firewall;
-    firewall -> p2_in [label="fresh conversation"];
+    user -> script [label="fresh conversation\n/dw-02-research"];
+    script -> p2_in [label="sed extraction"];
 }
 ```
 
@@ -131,6 +131,7 @@ digraph handoff {
      "last_updated": "<ISO timestamp>"
    }
    ```
-3. Instruct: "Review and edit questions as needed. When ready, **copy everything
-   below '## Research Questions'** and run `/dw-02-research <topic-slug>` in a
-   **fresh conversation**, pasting the questions when prompted."
+3. Instruct: "Review and edit questions in `01-research-questions.md` as needed.
+   When ready, run `/dw-02-research <topic-slug>` in a **fresh conversation**.
+   The research questions will be extracted automatically — the bias firewall
+   ensures the original prompt is never passed to Phase 2."

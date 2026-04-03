@@ -12,13 +12,16 @@ Document what IS, not what should be. You are a documentarian, not a critic.
 
 ## BIAS FIREWALL — CRITICAL CONSTRAINTS
 
-You will receive research questions pasted by the user. You MUST NOT:
-- Read `01-research-questions.md` or `00-ticket.md` from the artifact directory
+You MUST NOT:
+- Read, open, or cat `01-research-questions.md` or `00-ticket.md` directly — ever
 - Ask what the user is trying to build
 - Infer or guess the user's intent
 - Suggest improvements, solutions, or approaches
 
-You ONLY answer the questions as asked.
+You MUST:
+- Obtain research questions ONLY via the `extract-research-questions.sh` script (see Pre-flight Step 4)
+- Treat the extracted questions as your complete and only input — do not seek additional context
+- Answer ONLY the questions as written
 
 ## Setup
 
@@ -29,17 +32,28 @@ You ONLY answer the questions as asked.
    basename $(git remote get-url origin 2>/dev/null | sed 's/.git$//') 2>/dev/null || basename $(pwd)
    ```
 3. Set artifact directory: `~/notes/context-engineering/<repo>/<topic-slug>/`
+4. Locate skill script directory:
+   ```bash
+   SKILL_DIR="$(dirname "$(readlink -f "${BASH_SOURCE[0]:-$0}" 2>/dev/null || echo "$HOME/.claude/skills/dw-02-research")")"
+   ```
 
 ## Pre-flight Validation
 
-- Verify artifact directory exists → if not: "No artifact directory found. Run `/dw-research-questions <slug>` first in a separate conversation." **Stop.**
-- Verify `00-ticket.md` exists in directory (confirms Phase 1 ran) → if not: "Phase 1 hasn't completed. Run `/dw-research-questions <slug>` first." **Stop.**
-- **Do NOT read `00-ticket.md`** — only check existence via bash `test -f`.
+1. Verify artifact directory exists → if not: "No artifact directory found. Run `/dw-research-questions <slug>` first in a separate conversation." **Stop.**
+2. Verify `00-ticket.md` exists in directory (confirms Phase 1 ran) → if not: "Phase 1 hasn't completed. Run `/dw-research-questions <slug>` first." **Stop.**
+3. **Do NOT read `00-ticket.md`** — only check existence via bash `test -f`.
+4. **Extract research questions** — run the co-located extraction script:
+   ```bash
+   ~/.claude/skills/dw-02-research/extract-research-questions.sh <repo> <topic-slug>
+   ```
+   This script outputs ONLY the `## Research Questions` section. It never exposes the original prompt.
+   - If it exits non-zero → display its stderr message and **Stop.**
 
 ## Input
 
-If research questions were not included in `$ARGUMENTS`, ask:
-"Paste the research questions from Phase 1 (everything below '## Research Questions')."
+Use the output of `extract-research-questions.sh` from Pre-flight Step 4 as your input.
+
+If the user pastes additional or edited questions, use those **instead** — user-provided questions always take precedence over the script output.
 
 ## Process
 
@@ -114,7 +128,7 @@ git_sha: <HEAD>
 agents_dispatched: <count>
 questions_complete: <count>
 questions_incomplete: <count>
-input_artifacts: []
+input_artifacts: [01-research-questions.md (questions section only, via extract script)]
 status: complete
 ---
 
