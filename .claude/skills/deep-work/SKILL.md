@@ -33,6 +33,8 @@ digraph deep_work {
         p3 [label="/dw-design-discussion\nOptions grounded in evidence"];
         p4 [label="/dw-outline\nDecisions → file changes"];
         p5 [label="/dw-plan\nExact tasks, patterns, tests"];
+        p5b [label="/dw-plan-review\nAdversarial quality review\n(auto-dispatched by Phase 5)"
+             style="filled,rounded" fillcolor="#ffdddd"];
         p6 [label="/dw-implement\nExecute the plan"];
     }
 
@@ -46,7 +48,8 @@ digraph deep_work {
     reintro -> p3;
     p3 -> p4 [label="03-design-discussion.md"];
     p4 -> p5 [label="04-structure-outline.md"];
-    p5 -> p6 [label="05-plan.md"];
+    p5 -> p5b [label="05-plan.md"];
+    p5b -> p6 [label="05b-plan-review.md"];
     p6 -> done;
 }
 ```
@@ -60,6 +63,7 @@ digraph deep_work {
 | 3 | `/dw-design-discussion <slug>` | Explore design options grounded in research |
 | 4 | `/dw-outline <slug>` | Map decisions to file changes |
 | 5 | `/dw-plan <slug>` | Create detailed implementation plan |
+| 5b | `/dw-plan-review <slug>` | Adversarial quality review (auto-dispatched by Phase 5, or run standalone) |
 | 6 | `/dw-implement <slug>` | Execute the plan |
 
 **CRITICAL:** Each phase MUST run in a **fresh conversation**. The bias firewall
@@ -101,6 +105,7 @@ The original prompt is re-introduced in Phase 3, after research is locked in.
 | `02-research.md` | Phase 2 | Phases 3, 4, 5 |
 | `03-design-discussion.md` | Phase 3 | Phases 4, 5 |
 | `04-structure-outline.md` | Phase 4 | Phase 5 |
-| `05-plan.md` | Phase 5 | Phase 6 |
+| `05-plan.md` | Phase 5 | Phase 5b, Phase 6 |
+| `05b-plan-review.md` | Phase 5b | Phase 6 (context) |
 | `06-completion.md` | Phase 6 | None |
 | `.state.json` | All phases | This guide |
