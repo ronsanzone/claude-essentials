@@ -6,7 +6,8 @@ description: "Use when running the full deep-work pipeline end-to-end in a singl
 # Deep Work Pipeline Orchestrator
 
 Runs the full deep-work pipeline (Phases 1-6) in a single session using agent teams.
-Each phase gets a fresh teammate (clean context). You review artifacts between phases.
+Each phase gets a fresh teammate (clean context). The user reviews artifacts between phases.
+The team lead is a conductor — it does NOT read artifacts or write state. Teammates handle that.
 
 **Announce at start:** "Deep-work pipeline orchestrator loaded."
 
@@ -35,7 +36,18 @@ Create a team named `dw-<topic-slug>`:
 TeamCreate(team_name: "dw-<topic-slug>", description: "Deep work pipeline: <topic-slug>")
 ```
 
-You (the team lead) own the state machine. You spawn one teammate per phase, wait for completion, gate, then advance.
+You (the team lead) are the conductor. You spawn teammates, relay messages, and gate. You do NOT read artifacts or write `.state.json` — the sub-skills handle their own state and artifact I/O.
+
+## Model Selection
+
+Teammates require different models based on the cognitive demands of their phase:
+
+| Phases | Model | Rationale |
+|--------|-------|-----------|
+| 1, 2, 3, 4, 5 | `opus` | Research and planning need strongest reasoning |
+| 6 | `sonnet` | Implementation tasks are well-scoped by Phase 5 |
+
+The user can override the model for any phase. If they specify a model preference, use it.
 
 ## Pipeline Execution
 
@@ -49,19 +61,17 @@ digraph pipeline {
     spawn [label="Spawn teammate\nfor Phase N"];
     wait [label="Wait for\ncompletion message"];
     proxy_qa [label="Proxy batch Q&A\n(Phase 3 only)"];
-    read_artifact [label="Read artifact\nBuild summary"];
-    gate [label="Present summary\n+ ask user" shape=diamond];
+    gate [label="Present teammate summary\n+ artifact path\nask user to review" shape=diamond];
     revise [label="Forward feedback\nto teammate"];
-    advance [label="Update .state.json\nShutdown teammate"];
+    advance [label="Shutdown teammate\nAdvance phase"];
     next [label="More phases?" shape=diamond];
     done [label="Pipeline complete" shape=doublecircle];
 
     init -> spawn;
     spawn -> wait;
     wait -> proxy_qa [label="needs input\n(P3)"];
-    wait -> read_artifact [label="complete"];
+    wait -> gate [label="complete"];
     proxy_qa -> wait [label="answers forwarded"];
-    read_artifact -> gate;
     gate -> advance [label="approve"];
     gate -> revise [label="revise"];
     gate -> done [label="abort"];
@@ -79,7 +89,7 @@ digraph pipeline {
 Spawn a **foreground** `general-purpose` agent via `Agent` tool:
 - `name`: `dw-phase-N` (e.g., `dw-phase-1`)
 - `team_name`: `dw-<topic-slug>`
-- `model`: `sonnet` (for phases 1-5), inherited for phase 6
+- `model`: per Model Selection table above
 
 Build the teammate prompt using the template below, parameterized per phase.
 
@@ -89,50 +99,32 @@ The teammate will send a message when done. Messages arrive automatically.
 
 **Phase 3 special handling:** The teammate will send design questions for batch resolution instead of a completion message. See [Phase 3 Interaction](#phase-3-interaction).
 
-#### 3. Read Artifact + Gate
+#### 3. Gate
 
-After the teammate reports completion:
-1. Read the phase artifact(s) from the artifact directory. Phase 1 produces two files (`00-ticket.md` and `01-research-questions.md`) — read both. All other phases produce one artifact each (see phase-config.md).
-2. Present to the user:
-   - Phase name and number
-   - Brief summary (3-5 bullets of key findings/decisions)
-   - Artifact file path(s)
-3. Ask via AskUserQuestion:
-   > "Phase N complete. Artifact: `<path>`
-   >
-   > [summary bullets]
-   >
-   > **Approve** to advance | **Revise** with feedback | **Abort** pipeline"
+After the teammate reports `STATUS: complete`, present to the user:
+- The teammate's summary (from their message — do NOT re-read the artifact)
+- The artifact file path(s) so the user can review
+- Ask via AskUserQuestion:
+  > "Phase N complete. Artifact: `<path>`
+  >
+  > [teammate's summary bullets]
+  >
+  > Review the artifact, then: **Approve** to advance | **Revise** with feedback | **Abort** pipeline"
+
+The user reads the artifact themselves. The team lead does not.
 
 #### 4. Handle Gate Response
 
-- **Approve**: Update `.state.json`, shutdown teammate, advance to next phase
+- **Approve**: Shutdown teammate via `SendMessage` with `{type: "shutdown_request"}`, advance to next phase.
 - **Revise**: Forward the user's feedback to the teammate via `SendMessage`. Wait for the teammate to revise and re-report. Re-gate. Maximum 3 revision rounds per phase — after the third, ask user: "3 revisions attempted. Continue revising, or approve as-is?"
-- **Abort**: Shutdown teammate, update `.state.json` with current progress including `aborted_at` field, stop.
-
-#### 5. Update State
-
-After each approved phase, update `.state.json`:
-```json
-{
-  "topic": "<slug>",
-  "repo": "<repo>",
-  "current_phase": N,
-  "completed_phases": [1, 2, ...N],
-  "last_updated": "<ISO timestamp>",
-  "status": "in_progress"
-}
-```
-
-On abort, set `"status": "aborted"` and `"aborted_at": N` (the phase that was aborted).
-On completion, set `"status": "complete"`.
+- **Abort**: Shutdown teammate. Stop pipeline.
 
 ## Phase 3 Interaction
 
 Phase 3 generates design questions that need user resolution. The flow:
 
 1. Teammate writes the draft artifact with OPEN questions
-2. Teammate sends you the design questions summary (question titles + options + recommendations)
+2. Teammate sends `STATUS: needs-input` with the design questions summary (question titles + options + recommendations)
 3. You present the questions to the user via AskUserQuestion, offering batch mode:
    > "Phase 3 has N design questions to resolve. Review the options below and respond with your choices (e.g., 'DQ-1: A, DQ-2: B') or 'accept all' to use recommendations.
    >
@@ -141,7 +133,7 @@ Phase 3 generates design questions that need user resolution. The flow:
    > You can also message the teammate directly to discuss specific questions."
 4. Forward the user's answers to the teammate via SendMessage
 5. Teammate finalizes the artifact with resolved decisions
-6. Teammate sends completion message — proceed to normal gate
+6. Teammate sends `STATUS: complete` — proceed to normal gate
 
 ## Teammate Prompt Template
 
@@ -236,6 +228,5 @@ The teammate prompt must NOT reference the artifact file path for 01-research-qu
 ## Completion
 
 When all 6 phases are approved:
-1. Update `.state.json` with `completed_phases: [1, 2, 3, 4, 5, 6]`
+1. Read `.state.json` to confirm all phases complete
 2. Report: "Pipeline complete. All artifacts in `<artifact_dir>`."
-3. Shutdown team: send `{type: "shutdown_request"}` to any remaining teammates

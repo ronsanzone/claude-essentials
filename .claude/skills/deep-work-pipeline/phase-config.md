@@ -2,14 +2,14 @@
 
 ## Phases
 
-| Phase | Skill | Artifact | Interaction | Firewall | Gate |
-|-------|-------|----------|-------------|----------|------|
-| 1 | dw-01-research-questions | 00-ticket.md, 01-research-questions.md | none | no | human |
-| 2 | dw-02-research | 02-research.md | none | yes | human |
-| 3 | dw-03-design-discussion | 03-design-discussion.md | batch-qa | no | human |
-| 4 | dw-04-outline | 04-structure-outline.md | none | no | human |
-| 5 | dw-05-plan | 05-plan.md | none | no | human |
-| 6 | dw-06b-implement-subagents | 06-completion.md | none | no | human |
+| Phase | Skill | Artifact | Model | Interaction | Firewall | Gate |
+|-------|-------|----------|-------|-------------|----------|------|
+| 1 | dw-01-research-questions | 00-ticket.md, 01-research-questions.md | opus | none | no | human |
+| 2 | dw-02-research | 02-research.md | opus | none | yes | human |
+| 3 | dw-03-design-discussion | 03-design-discussion.md | opus | batch-qa | no | human |
+| 4 | dw-04-outline | 04-structure-outline.md | opus | none | no | human |
+| 5 | dw-05-plan | 05-plan.md | opus | none | no | human |
+| 6 | dw-06b-implement-subagents | 06-completion.md | sonnet | none | no | human |
 
 ## Artifact Dependencies
 
