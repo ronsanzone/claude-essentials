@@ -13,13 +13,13 @@ Document what IS, not what should be. You are a documentarian, not a critic.
 ## BIAS FIREWALL — CRITICAL CONSTRAINTS
 
 You MUST NOT:
-- Read, open, or cat `01-research-questions.md` or `00-ticket.md` directly — ever
+- Read, open, or cat `00-ticket.md` directly — ever
 - Ask what the user is trying to build
 - Infer or guess the user's intent
 - Suggest improvements, solutions, or approaches
 
 You MUST:
-- Obtain research questions ONLY via the `extract-research-questions.sh` script (see Pre-flight Step 4)
+- Obtain research questions ONLY via the `extract-research-questions.sh` script (see Pre-flight Step 4) or from user-pasted text
 - Treat the extracted questions as your complete and only input — do not seek additional context
 - Answer ONLY the questions as written
 
@@ -32,10 +32,6 @@ You MUST:
    basename $(git remote get-url origin 2>/dev/null | sed 's/.git$//') 2>/dev/null || basename $(pwd)
    ```
 3. Set artifact directory: `~/notes/context-engineering/<repo>/<topic-slug>/`
-4. Locate skill script directory:
-   ```bash
-   SKILL_DIR="$(dirname "$(readlink -f "${BASH_SOURCE[0]:-$0}" 2>/dev/null || echo "$HOME/.claude/skills/dw-02-research")")"
-   ```
 
 ## Pre-flight Validation
 
@@ -46,7 +42,7 @@ You MUST:
    ```bash
    ~/.claude/skills/dw-02-research/extract-research-questions.sh <repo> <topic-slug>
    ```
-   This script outputs ONLY the `## Research Questions` section. It never exposes the original prompt.
+   This script outputs ONLY the `## Research Questions` section from `01-research-questions.md`. It never exposes the original prompt.
    - If it exits non-zero → display its stderr message and **Stop.**
 
 ## Input
@@ -128,7 +124,7 @@ git_sha: <HEAD>
 agents_dispatched: <count>
 questions_complete: <count>
 questions_incomplete: <count>
-input_artifacts: [01-research-questions.md (questions section only, via extract script)]
+input_artifacts: [01-research-questions.md (questions section only via extract script)]
 status: complete
 ---
 

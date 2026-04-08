@@ -209,9 +209,4 @@ status: complete
 
 1. Present full plan to user for review
 2. Update `.state.json` with `current_phase: 5, completed_phases: [1, 2, 3, 4, 5]`
-3. **Dispatch adversarial plan review:** Launch a subagent (general-purpose, model: opus) with this prompt:
-   ```
-   Run /dw-05b-plan-review <topic-slug>
-   ```
-   Present the review findings to the user alongside the plan.
-4. Instruct: "Plan ready. Run `/dw-06a-implement <topic-slug>` in a **fresh conversation** to execute this plan in a single session. Or run `/dw-06b-implement-subagents <topic-slug>` in a **fresh conversation** to execute a larger plan in a single with sub-agents."
+3. Instruct: "Plan ready. Optionally run `/dw-plan-review <topic-slug>` for an adversarial review. When ready, run `/dw-06a-implement <topic-slug>` in a **fresh conversation** to execute this plan in a single session, or `/dw-06b-implement-subagents <topic-slug>` for parallel sub-agent execution."

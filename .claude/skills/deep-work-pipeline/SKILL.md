@@ -172,12 +172,9 @@ No special constraints. Run the skill as documented.
 
 **Phase 2** (research) — FIREWALL:
 ```
-CRITICAL: You MUST NOT read 00-ticket.md or 01-research-questions.md directly.
-The research questions are provided below — use ONLY these:
-
-{paste the questions section from 01-research-questions.md here}
-
-This firewall ensures your research is objective and unbiased by the original prompt.
+No special constraints. Run the skill as documented.
+The skill's own bias firewall handles question extraction via extract-research-questions.sh.
+Do NOT read 00-ticket.md or pass the original prompt.
 ```
 
 **Phase 3** (design-discussion):
@@ -217,13 +214,11 @@ The teammate prompt template instructs this prefix convention. The team lead rou
 
 ## Firewall Enforcement (Phase 2)
 
-Before spawning the Phase 2 teammate:
-1. Read `01-research-questions.md` from the artifact directory
-2. Extract ONLY the content below the `## Research Questions` heading (this is the standard heading used by Phase 1)
-3. Embed the questions directly in the teammate prompt
-4. Do NOT include the original prompt, ticket content, or any solution-oriented context
+The Phase 2 skill handles its own firewall internally via `extract-research-questions.sh`.
+The team lead does NOT need to read or embed questions — just spawn the teammate and let
+the skill extract them.
 
-The teammate prompt must NOT reference the artifact file path for 01-research-questions.md or 00-ticket.md.
+The teammate prompt must NOT reference 00-ticket.md or pass the original prompt.
 
 ## Completion
 

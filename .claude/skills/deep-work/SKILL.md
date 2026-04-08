@@ -33,8 +33,8 @@ digraph deep_work {
         p3 [label="/dw-design-discussion\nOptions grounded in evidence"];
         p4 [label="/dw-outline\nDecisions → file changes"];
         p5 [label="/dw-plan\nExact tasks, patterns, tests"];
-        p5b [label="/dw-plan-review\nAdversarial quality review\n(auto-dispatched by Phase 5)"
-             style="filled,rounded" fillcolor="#ffdddd"];
+        p5b [label="/dw-plan-review\nAdversarial quality review\n(optional)"
+             style="filled,rounded,dashed" fillcolor="#ffdddd"];
         p6 [label="/dw-implement\nExecute the plan"];
     }
 
@@ -63,7 +63,7 @@ digraph deep_work {
 | 3 | `/dw-design-discussion <slug>` | Explore design options grounded in research |
 | 4 | `/dw-outline <slug>` | Map decisions to file changes |
 | 5 | `/dw-plan <slug>` | Create detailed implementation plan |
-| 5b | `/dw-plan-review <slug>` | Adversarial quality review (auto-dispatched by Phase 5, or run standalone) |
+| 5b | `/dw-plan-review <slug>` | Adversarial quality review (optional, run standalone) |
 | 6 | `/dw-implement <slug>` | Execute the plan |
 
 **CRITICAL:** Each phase MUST run in a **fresh conversation**. The bias firewall

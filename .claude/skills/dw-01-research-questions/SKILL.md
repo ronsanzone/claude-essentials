@@ -109,11 +109,11 @@ digraph handoff {
 
     p1_out [label="01-research-questions.md\n(contains prompt + questions)"];
     user [label="User reviews &\nedits questions" shape=diamond style=filled fillcolor="#ffffcc"];
-    script [label="extract-research-questions.sh" shape=octagon style=filled fillcolor="#ff4444" fontcolor=white];
+    script [label="extract-research-questions.sh\n(auto-run by Phase 2)" shape=octagon style=filled fillcolor="#ff4444" fontcolor=white];
     p2_in [label="Questions only\n(prompt never exposed)"];
 
     p1_out -> user [label="review & edit"];
-    user -> script [label="fresh conversation\n/dw-02-research"];
+    user -> script [label="fresh conversation\n/dw-02-research <slug>"];
     script -> p2_in [label="sed extraction"];
 }
 ```
@@ -133,5 +133,5 @@ digraph handoff {
    ```
 3. Instruct: "Review and edit questions in `01-research-questions.md` as needed.
    When ready, run `/dw-02-research <topic-slug>` in a **fresh conversation**.
-   The research questions will be extracted automatically — the bias firewall
-   ensures the original prompt is never passed to Phase 2."
+   The research skill automatically extracts only the questions section via
+   `extract-research-questions.sh` — the original prompt is never exposed to Phase 2."

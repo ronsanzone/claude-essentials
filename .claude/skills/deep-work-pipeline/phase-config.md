@@ -30,5 +30,6 @@
 ## Firewall Constraint (Phase 2)
 
 Phase 2 MUST NOT receive the original prompt or read 00-ticket.md.
-The teammate prompt for Phase 2 passes ONLY the questions section from 01-research-questions.md.
+The Phase 2 skill handles extraction internally via `extract-research-questions.sh` —
+the pipeline orchestrator does not need to embed questions in the teammate prompt.
 This ensures research objectivity before the prompt re-enters in Phase 3.
