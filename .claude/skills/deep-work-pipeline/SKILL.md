@@ -312,11 +312,16 @@ This phase dispatches its own subagents internally for implementation tasks.
 
 Teammates prefix their messages with a status tag for unambiguous routing:
 
-- **`STATUS: complete`** — Phase work is done. Followed by summary bullets and artifact path. Proceed to gate.
-- **`STATUS: needs-input`** — Teammate needs user decisions (Phase 3 design questions). Followed by the questions. Proxy to user.
-- **`STATUS: error`** — Something failed. Followed by description. Report to user and ask how to proceed.
+- **`STATUS: complete`** — Phase work is done. Followed by summary bullets and artifact path.
+  - Auto gate: lead checks `.state.json`, advances.
+  - Human gate: lead presents summary to user, runs gate.
+- **`STATUS: needs-input`** — Teammate needs user decisions (Phase 3 design questions). Followed by the questions.
+  - Human gate: lead proxies questions to user, relays answers.
+  - Accept-recs gate: should not occur (teammate prompt prevents it).
+- **`STATUS: error`** — Something failed. Followed by description.
+  - All gates: lead stops auto-advance, presents error to user.
 
-The teammate prompt template instructs this prefix convention. The team lead routes based on the prefix, not on keyword matching in the body.
+The lead routes based on the status prefix and the current gate type.
 
 ## Firewall Enforcement (Phase 2)
 
@@ -330,4 +335,4 @@ The teammate prompt must NOT reference 00-ticket.md or pass the original prompt.
 
 When all 6 phases are approved:
 1. Read `.state.json` to confirm all phases complete
-2. Report: "Pipeline complete. All artifacts in `<artifact_dir>`."
+2. Report: "Pipeline complete (mode: **<gate_mode>**). All artifacts in `<artifact_dir>`."
