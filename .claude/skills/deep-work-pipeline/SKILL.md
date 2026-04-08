@@ -1,33 +1,53 @@
 ---
 name: deep-work-pipeline
-description: "Use when running the full deep-work pipeline end-to-end in a single session. Orchestrates all 6 phases sequentially using agent teams, with human review gates between each phase."
+description: "Use when running the full deep-work pipeline end-to-end in a single session. Orchestrates all 6 phases sequentially using agent teams, with configurable review gates between each phase."
 ---
 
 # Deep Work Pipeline Orchestrator
 
 Runs the full deep-work pipeline (Phases 1-6) in a single session using agent teams.
-Each phase gets a fresh teammate (clean context). The user reviews artifacts between phases.
-The team lead is a conductor — it does NOT read artifacts or write state. Teammates handle that.
+Each phase gets a fresh teammate (clean context). Gate behavior is configurable per mode.
+The team lead is a thin dispatcher — it does NOT read artifacts or accumulate phase content.
 
 **Announce at start:** "Deep-work pipeline orchestrator loaded."
 
 ## Setup
 
-1. Parse `$ARGUMENTS` as `<topic-slug>`
-   - If empty, ask user via AskUserQuestion
+1. Parse `$ARGUMENTS` for `<topic-slug>` and optional `--mode`:
+   ```
+   /deep-work-pipeline <topic-slug> [--mode full|research-gate|design-gate|auto]
+   ```
+   - If `<topic-slug>` is empty, ask user via AskUserQuestion
+   - If `--mode` is not provided, default to `full`
+   - Valid modes: `full`, `research-gate`, `design-gate`, `auto`
+   - If invalid mode, report error and ask user to choose from valid modes
 2. Derive repo: `basename $(git remote get-url origin 2>/dev/null | sed 's/.git$//') 2>/dev/null || basename $(pwd)`
 3. Set artifact directory: `~/notes/context-engineering/<repo>/<topic-slug>/`
 4. Create artifact directory if it doesn't exist
+5. Report: "Pipeline mode: **<mode>**. Topic: **<topic-slug>**."
 
 ## Resume Check
 
 Read `.state.json` from the artifact directory. If it exists and has `completed_phases`:
 - Report completed phases to the user
-- Ask: "Resume from Phase N, or restart?"
+- If `.state.json` contains a `gate_mode` field, show it: "Original mode: **<mode>**."
+  - Ask: "Resume from Phase N with mode **<original_mode>**, switch to **<current_mode>**, or restart?"
+  - If user wants to switch modes, use the new mode going forward
+- If no `gate_mode` in `.state.json` (legacy pipeline), use the mode from `$ARGUMENTS`
 - If resume: skip completed phases, begin at the next incomplete phase
 - If restart: clear `.state.json` and start from Phase 1
 
-If no `.state.json`, start from Phase 1.
+If no `.state.json`, start from Phase 1. Write initial `.state.json`:
+```json
+{
+  "topic": "<topic-slug>",
+  "repo": "<repo>",
+  "gate_mode": "<mode>",
+  "current_phase": 0,
+  "completed_phases": [],
+  "last_updated": "<ISO timestamp>"
+}
+```
 
 ## Team Setup
 
