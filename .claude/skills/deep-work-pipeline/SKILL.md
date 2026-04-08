@@ -56,18 +56,16 @@ Create a team named `dw-<topic-slug>`:
 TeamCreate(team_name: "dw-<topic-slug>", description: "Deep work pipeline: <topic-slug>")
 ```
 
-You (the team lead) are the conductor. You spawn teammates, relay messages, and gate. You do NOT read artifacts or write `.state.json` — the sub-skills handle their own state and artifact I/O.
+You (the team lead) are a thin dispatcher. You spawn teammates, gate based on mode, and advance phases.
+You do NOT read artifacts, accumulate phase content, or write `.state.json` — the sub-skills handle their own state and artifact I/O.
 
 ## Model Selection
 
-Teammates require different models based on the cognitive demands of their phase:
+All teammates use `opus`. Implementation subagents dispatched internally by Phase 6 use their own model (sonnet) as specified in their prompt templates.
 
 | Phases | Model | Rationale |
 |--------|-------|-----------|
-| 1, 2, 3, 4, 5 | `opus` | Research and planning need strongest reasoning |
-| 6 | `sonnet` | Implementation tasks are well-scoped by Phase 5 |
-
-The user can override the model for any phase. If they specify a model preference, use it.
+| 1-6 | opus | All orchestrator teammates need strong reasoning |
 
 ## Pipeline Execution
 
