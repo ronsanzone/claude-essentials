@@ -69,6 +69,8 @@ All teammates use `opus`. Implementation subagents dispatched internally by Phas
 
 ## Pipeline Execution
 
+Read the gate mode matrix from `phase-config.md` to determine the gate type for each phase under the current mode.
+
 ```dot
 digraph pipeline {
     rankdir=TB;
@@ -76,66 +78,146 @@ digraph pipeline {
     edge [fontname="Helvetica", fontsize=10];
 
     init [label="Setup + Resume Check" shape=doublecircle];
+    lookup [label="Look up gate type\nfor Phase N + mode"];
     spawn [label="Spawn teammate\nfor Phase N"];
-    wait [label="Wait for\ncompletion message"];
-    proxy_qa [label="Proxy batch Q&A\n(Phase 3 only)"];
-    gate [label="Present teammate summary\n+ artifact path\nask user to review" shape=diamond];
-    revise [label="Forward feedback\nto teammate"];
-    advance [label="Shutdown teammate\nAdvance phase"];
-    next [label="More phases?" shape=diamond];
-    done [label="Pipeline complete" shape=doublecircle];
+    wait [label="Wait for\ncompletion"];
+    check_status [label="Parse teammate\nSTATUS message" shape=diamond];
 
-    init -> spawn;
+    subgraph cluster_auto {
+        label="auto gate";
+        style=dashed;
+        auto_check [label="Check .state.json\nupdated"];
+        auto_advance [label="Advance"];
+    }
+
+    subgraph cluster_human {
+        label="human gate";
+        style=dashed;
+        present [label="Present summary\n+ artifact path"];
+        gate [label="User decision" shape=diamond];
+        revise [label="Forward feedback\nto teammate"];
+        takeover [label="User works directly\nwith teammate"];
+        takeover_done [label="User says 'continue'" shape=diamond];
+    }
+
+    subgraph cluster_accept_recs {
+        label="accept-recs gate (Phase 3 only)";
+        style=dashed;
+        send_accept [label="Send 'accept all\nrecommendations'\nto teammate"];
+        accept_wait [label="Wait for\nSTATUS: complete"];
+        accept_check [label="Check .state.json\nupdated"];
+    }
+
+    done [label="Pipeline complete" shape=doublecircle];
+    error [label="Present error\nto user" shape=box style="rounded,filled" fillcolor="#ffdddd"];
+
+    init -> lookup;
+    lookup -> spawn;
     spawn -> wait;
-    wait -> proxy_qa [label="needs input\n(P3)"];
-    wait -> gate [label="complete"];
-    proxy_qa -> wait [label="answers forwarded"];
-    gate -> advance [label="approve"];
+    wait -> check_status;
+
+    check_status -> auto_check [label="auto +\nSTATUS: complete"];
+    check_status -> present [label="human +\nSTATUS: complete"];
+    check_status -> send_accept [label="accept-recs +\nSTATUS: needs-input"];
+    check_status -> present [label="any +\nSTATUS: needs-input\n(non-P3)"];
+    check_status -> error [label="STATUS: error"];
+
+    auto_check -> auto_advance [label="updated"];
+    auto_check -> error [label="not updated"];
+    auto_advance -> lookup [label="more phases"];
+    auto_advance -> done [label="all done"];
+
+    present -> gate;
+    gate -> auto_advance [label="approve"];
     gate -> revise [label="revise"];
+    gate -> takeover [label="take over"];
     gate -> done [label="abort"];
     revise -> wait;
-    advance -> next;
-    next -> spawn [label="yes"];
-    next -> done [label="no"];
+    takeover -> takeover_done;
+    takeover_done -> auto_advance [label=".state.json\nupdated"];
+
+    send_accept -> accept_wait;
+    accept_wait -> accept_check;
+    accept_check -> auto_advance;
 }
 ```
 
 ### For Each Phase
 
-#### 1. Spawn Teammate
+#### 1. Look Up Gate Type
+
+Read the gate mode matrix from `phase-config.md`. For the current phase number and the pipeline's `gate_mode`, determine the gate type: `human`, `auto`, or `accept-recs`.
+
+#### 2. Spawn Teammate
 
 Spawn a **foreground** `general-purpose` agent via `Agent` tool:
 - `name`: `dw-phase-N` (e.g., `dw-phase-1`)
 - `team_name`: `dw-<topic-slug>`
-- `model`: per Model Selection table above
+- `model`: `opus`
 
-Build the teammate prompt using the template below, parameterized per phase.
+Build the teammate prompt using the template in [Teammate Prompt Template](#teammate-prompt-template), parameterized per phase.
 
-#### 2. Wait for Completion
+**Phase 3 in `auto` mode only:** Add this directive to the teammate prompt:
+> "For Step 7 (question resolution), choose 'Accept recommendations' mode. Resolve all OPEN questions using your recommendations. Do NOT send STATUS: needs-input."
 
-The teammate will send a message when done. Messages arrive automatically.
+#### 3. Wait for Completion
 
-**Phase 3 special handling:** The teammate will send design questions for batch resolution instead of a completion message. See [Phase 3 Interaction](#phase-3-interaction).
+The teammate will work and eventually the Agent call will return with the teammate's final message.
 
-#### 3. Gate
+#### 4. Dispatch by Gate Type
 
-After the teammate reports `STATUS: complete`, present to the user:
-- The teammate's summary (from their message — do NOT re-read the artifact)
-- The artifact file path(s) so the user can review
-- Ask via AskUserQuestion:
-  > "Phase N complete. Artifact: `<path>`
-  >
-  > [teammate's summary bullets]
-  >
-  > Review the artifact, then: **Approve** to advance | **Revise** with feedback | **Abort** pipeline"
+**If gate type is `auto`:**
+1. Read `.state.json` from artifact directory
+2. If the current phase is in `completed_phases` → advance to next phase
+3. If NOT → warn user: "Teammate reported complete but `.state.json` wasn't updated. Artifact may be incomplete."
+   - Offer via AskUserQuestion: **Continue anyway** / **Investigate** / **Abort**
 
-The user reads the artifact themselves. The team lead does not.
+**If gate type is `human`:**
+1. Present to the user via AskUserQuestion:
+   > "Phase N complete. Artifact: `<path>`
+   >
+   > [teammate's summary bullets from their final message]
+   >
+   > **Approve** — advance to next phase
+   > **Revise** — I'll relay your feedback to the teammate
+   > **Take over** — work with the teammate directly, tell me when done
+   > **Abort** — stop the pipeline"
+2. Handle the user's choice:
+   - **Approve**: Advance to next phase.
+   - **Revise**: Forward the user's feedback to the teammate via `SendMessage`. Wait for the teammate to revise and re-report. Re-gate. Maximum 3 revision rounds — after the third, ask: "3 revisions attempted. Continue revising, or approve as-is?"
+   - **Take over**: Inform user they can work directly with the teammate. Wait for the user to say "done" / "continue" / "phase complete". Then read `.state.json` to confirm the phase is in `completed_phases`. If confirmed, advance. If not, warn and ask.
+   - **Abort**: Stop pipeline.
 
-#### 4. Handle Gate Response
+**If gate type is `accept-recs` (Phase 3 only):**
+This case is handled via the teammate prompt directive in Step 2. The teammate auto-accepts recommendations and completes without sending `STATUS: needs-input`. The agent returns with `STATUS: complete`. Proceed as with `auto` gate — check `.state.json` and advance.
 
-- **Approve**: Shutdown teammate via `SendMessage` with `{type: "shutdown_request"}`, advance to next phase.
-- **Revise**: Forward the user's feedback to the teammate via `SendMessage`. Wait for the teammate to revise and re-report. Re-gate. Maximum 3 revision rounds per phase — after the third, ask user: "3 revisions attempted. Continue revising, or approve as-is?"
-- **Abort**: Shutdown teammate. Stop pipeline.
+**Handling `STATUS: needs-input` on human-gated Phase 3:**
+When Phase 3 is human-gated and the teammate sends `STATUS: needs-input`:
+1. The teammate's final message contains the design questions summary
+2. Present the questions to the user:
+   > "Phase 3 has N design questions to resolve.
+   >
+   > [questions summary from teammate]
+   >
+   > **Answer in batch** — provide your choices (e.g., 'DQ-1: A, DQ-3: B')
+   > **Accept all recommendations** — use the teammate's picks
+   > **Take over** — work with the teammate directly"
+3. Relay the user's answers to the teammate via `SendMessage`
+4. Wait for teammate to finalize and report `STATUS: complete`
+5. Proceed to the normal human gate
+
+**Handling `STATUS: error` (any gate type):**
+Stop auto-advance. Present the error to the user:
+> "Phase N encountered an error:
+>
+> [error description from teammate]
+>
+> **Retry** — respawn the teammate for this phase
+> **Take over** — work with the teammate to resolve
+> **Abort** — stop the pipeline"
+
+**Handling unexpected `STATUS: needs-input` (non-Phase-3):**
+Present to user as if it were an error — this is unexpected behavior. Let the user decide how to proceed.
 
 ## Phase 3 Interaction
 
