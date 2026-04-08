@@ -27,13 +27,15 @@ Default: `full` (preserves current behavior).
 
 #### Gate Mode Matrix
 
+Each mode automates a strictly larger prefix of phases. The gate name indicates where automation **stops** — everything after is human-gated.
+
 | Phase | Skill | full | research-gate | design-gate | auto |
 |-------|-------|------|---------------|-------------|------|
 | 1 | dw-01-research-questions | human | auto | auto | auto |
 | 2 | dw-02-research | human | human | auto | auto |
-| 3 | dw-03-design-discussion | human | accept-recs | human | accept-recs |
-| 4 | dw-04-outline | human | auto | auto | auto |
-| 5 | dw-05-plan | human | auto | auto | auto |
+| 3 | dw-03-design-discussion | human | human | human | accept-recs |
+| 4 | dw-04-outline | human | human | human | auto |
+| 5 | dw-05-plan | human | human | human | auto |
 | 6 | dw-06b-implement-subagents | human | human | human | human |
 
 #### Gate Types
@@ -44,12 +46,14 @@ Default: `full` (preserves current behavior).
 
 #### Mode Descriptions
 
-| Mode | Use case |
-|------|----------|
-| `full` | Unfamiliar codebase, high-stakes changes. Review everything. |
-| `research-gate` | Trust question generation. Review research findings before auto-advancing through design (with auto-accepted recommendations), outline, and plan. Gate before implementation. |
-| `design-gate` | Trust research. Review design decisions before auto-advancing through outline and plan. Gate before implementation. |
-| `auto` | Re-runs, well-understood features. Auto-advance everything except implementation. |
+Modes form a progression of increasing automation: `full` < `research-gate` < `design-gate` < `auto`.
+
+| Mode | Automates | Human from | Use case |
+|------|-----------|------------|----------|
+| `full` | Nothing | Phase 1 | Unfamiliar codebase, high-stakes changes. Review everything. |
+| `research-gate` | Phase 1 | Phase 2 | Trust question generation. Review research before proceeding manually through design, outline, plan, and implementation. |
+| `design-gate` | Phases 1-2 | Phase 3 | Trust research. Review design decisions and proceed manually through outline, plan, and implementation. |
+| `auto` | Phases 1-5 | Phase 6 | Re-runs, well-understood features. Auto-advance everything (accept-recs for P3) except implementation. |
 
 ### Thin Lead Architecture
 
@@ -75,7 +79,7 @@ The lead receives the teammate's final message (Agent tool return value) and for
 
 Phase 3 is the only phase requiring mid-flight user interaction (design question resolution). Handled per mode:
 
-#### Interactive modes (`full`, `design-gate`)
+#### Interactive modes (`full`, `research-gate`, `design-gate`)
 
 1. Teammate writes draft artifact with OPEN design questions
 2. Teammate sends `STATUS: needs-input` with question summary (titles + options + recommendations)
@@ -85,7 +89,7 @@ Phase 3 is the only phase requiring mid-flight user interaction (design question
 6. Teammate finalizes artifact, reports `STATUS: complete`
 7. Normal gate proceeds
 
-#### Auto modes (`auto`, `research-gate`)
+#### Auto mode (`auto`)
 
 1. Teammate prompt includes directive: "For Step 7 (question resolution), choose 'Accept recommendations' mode."
 2. Teammate runs to completion autonomously, writes finalized artifact
