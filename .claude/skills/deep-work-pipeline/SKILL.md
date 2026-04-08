@@ -221,19 +221,11 @@ Present to user as if it were an error — this is unexpected behavior. Let the 
 
 ## Phase 3 Interaction
 
-Phase 3 generates design questions that need user resolution. The flow:
+Phase 3 interaction is handled by the gate dispatch logic above:
+- **Human-gated Phase 3**: Lead proxies design questions to user via batch mode when teammate sends `STATUS: needs-input`, then relays answers.
+- **Auto Phase 3 (`accept-recs`)**: Teammate prompt includes accept-recommendations directive. No mid-phase interaction needed.
 
-1. Teammate writes the draft artifact with OPEN questions
-2. Teammate sends `STATUS: needs-input` with the design questions summary (question titles + options + recommendations)
-3. You present the questions to the user via AskUserQuestion, offering batch mode:
-   > "Phase 3 has N design questions to resolve. Review the options below and respond with your choices (e.g., 'DQ-1: A, DQ-2: B') or 'accept all' to use recommendations.
-   >
-   > [questions summary from teammate]
-   >
-   > You can also message the teammate directly to discuss specific questions."
-4. Forward the user's answers to the teammate via SendMessage
-5. Teammate finalizes the artifact with resolved decisions
-6. Teammate sends `STATUS: complete` — proceed to normal gate
+See "Dispatch by Gate Type" for the full flow.
 
 ## Teammate Prompt Template
 
@@ -260,7 +252,12 @@ STATUS: complete
 Or if you need user decisions (Phase 3 only):
 
 STATUS: needs-input
-[design questions summary]
+[design questions summary — question titles, options, and your recommendations]
+
+Or if something failed:
+
+STATUS: error
+[description of what went wrong and what was attempted]
 ```
 
 ### Phase-Specific Instructions
@@ -278,12 +275,21 @@ Do NOT read 00-ticket.md or pass the original prompt.
 ```
 
 **Phase 3** (design-discussion):
+
+When Phase 3 gate type is `human` (modes: full, research-gate, design-gate):
 ```
 When the skill asks you to present design questions to the user, instead send
-the questions summary to the team lead. The team lead will proxy the user's
-answers back to you. Use "batch" mode for resolution.
+the questions summary to the team lead using STATUS: needs-input. The team lead
+will proxy the user's answers back to you. Use "batch" mode for resolution.
 
 Do NOT use AskUserQuestion directly — route all user interaction through the team lead.
+```
+
+When Phase 3 gate type is `accept-recs` (mode: auto):
+```
+For Step 7 (question resolution), choose "Accept recommendations" mode.
+Resolve all OPEN questions using your stated recommendations. Finalize the
+artifact and report STATUS: complete. Do NOT send STATUS: needs-input.
 ```
 
 **Phase 4** (outline):
