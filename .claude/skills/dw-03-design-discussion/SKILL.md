@@ -83,6 +83,30 @@ Include your **recommendation** with rationale for each question.
 ### Step 5: Surface risks
 Compile: constraints from research, INCOMPLETE research gaps, out-of-scope items.
 
+### Step 5b: Targeted exploration (conditional)
+
+Review the design questions from Step 3-4 and the risks from Step 5. Identify any
+questions where:
+- Research findings are INCOMPLETE and the gap affects a design decision
+- A design question requires understanding code that research didn't cover
+- You'd be guessing at behavior, interfaces, or constraints without reading the code
+
+**If no gaps:** Skip to Step 6.
+
+**If gaps exist:**
+1. For each gap, formulate a specific, bounded lookup — a file to read, a pattern
+   to grep, or a function signature to check. No open-ended exploration.
+2. Execute the lookups using Read/Grep/Glob (or dispatch a codebase-locator agent
+   for broader searches). Cap at **5 lookups total** — this is targeted, not a
+   second research phase.
+3. For each finding, create additional design questions in a separate
+   `## Exploration-Driven Design Questions` section (numbered EDQ-1, EDQ-2, etc.).
+   These follow the same format as DQ questions — options, pros/cons, recommendation.
+   Each EDQ MUST cite what was found in the exploration and why it wasn't covered by
+   research.
+
+**FORBIDDEN:** Re-running research. This is surgical gap-filling, not Phase 2 redux.
+
 ### Step 6: Write draft design artifact
 Write `03-design-discussion.md` to the artifact directory with ALL sections
 populated and design questions marked as OPEN:
@@ -96,7 +120,8 @@ repo: <repo>
 git_sha: <HEAD>
 input_artifacts: [00-ticket.md, 02-research.md]
 decisions_count: <N>
-open_questions: <N>
+exploration_decisions_count: <N or 0>
+open_questions: <N total across DQ + EDQ>
 status: draft
 ---
 ```
@@ -136,18 +161,35 @@ status: draft
 ### DQ-2: <title>
 ...
 
+## Exploration-Driven Design Questions
+<only present if Step 5b found gaps — omit section entirely if not needed>
+
+### EDQ-1: <title>
+**Gap:** <what was missing from research and why it matters>
+**Found:** <what targeted exploration revealed, with file:line refs>
+
+| Option | Description | Pros | Cons |
+|--------|-------------|------|------|
+| A | ... | <citing exploration findings> | ... |
+| B | ... | <citing exploration findings> | ... |
+
+**Recommendation:** <option and rationale>
+**Decision:** OPEN
+
 ## Constraints Discovered
 <from research findings>
 
 ## Risks from Incomplete Research
 <INCOMPLETE questions and their implications>
+<exclude any gaps that were resolved by Step 5b exploration>
 ```
 
 ### Step 7: Present and resolve questions
 
 Present a summary of the design document to the user, then ask via AskUserQuestion:
 
-> "Design document written to `03-design-discussion.md` with N open questions.
+> "Design document written to `03-design-discussion.md` with N open questions
+> (M from research, K from targeted exploration).
 > How would you like to resolve them?
 >
 > 1. **Batch** — Review the document, then answer all questions in one response

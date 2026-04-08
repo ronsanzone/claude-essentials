@@ -13,18 +13,20 @@ The team lead is a thin dispatcher — it does NOT read artifacts or accumulate 
 
 ## Setup
 
-1. Parse `$ARGUMENTS` for `<topic-slug>` and optional `--mode`:
+1. Parse `$ARGUMENTS` for `<topic-slug>`, optional `--mode`, and optional initial context:
    ```
-   /deep-work-pipeline <topic-slug> [--mode full|research-gate|design-gate|auto]
+   /deep-work-pipeline <initial-context> [--slug <topic-slug>] [--mode full|research-gate|design-gate|auto]
    ```
-   - If `<topic-slug>` is empty, ask user via AskUserQuestion
-   - If `--mode` is not provided, default to `full`
+   - `<initial-context>`: Everything in `$ARGUMENTS` that isn't a recognized flag. This is free-form text, a file path, or a task description to pass to Phase 1. May be empty.
+   - `--slug <topic-slug>`: The topic slug for artifact directories. If not provided, infer from initial context or ask user via AskUserQuestion.
+   - `--mode`: Gate mode. If not provided, default to `full`.
    - Valid modes: `full`, `research-gate`, `design-gate`, `auto`
    - If invalid mode, report error and ask user to choose from valid modes
+   - Store the initial context (stripped of `--slug` and `--mode` flags) as `initial_context` for Phase 1
 2. Derive repo: `basename $(git remote get-url origin 2>/dev/null | sed 's/.git$//') 2>/dev/null || basename $(pwd)`
 3. Set artifact directory: `~/notes/context-engineering/<repo>/<topic-slug>/`
 4. Create artifact directory if it doesn't exist
-5. Report: "Pipeline mode: **<mode>**. Topic: **<topic-slug>**."
+5. Report: "Pipeline mode: **<mode>**. Topic: **<topic-slug>**." (and if initial context is present: "Initial context captured for Phase 1.")
 
 ## Resume Check
 
@@ -43,6 +45,7 @@ If no `.state.json`, start from Phase 1. Write initial `.state.json`:
   "topic": "<topic-slug>",
   "repo": "<repo>",
   "gate_mode": "<mode>",
+  "initial_context": "<initial_context or null>",
   "current_phase": 0,
   "completed_phases": [],
   "last_updated": "<ISO timestamp>"
@@ -238,7 +241,7 @@ Topic slug: {slug}
 Repo: {repo}
 Artifact directory: {artifact_dir}
 
-Invoke the skill by running: /dw-{skill_suffix} {slug}
+Invoke the skill by running: /dw-{skill_suffix} {skill_arguments}
 
 {phase_specific_instructions}
 
@@ -259,6 +262,15 @@ Or if something failed:
 STATUS: error
 [description of what went wrong and what was attempted]
 ```
+
+### Skill Arguments by Phase
+
+`{skill_arguments}` varies by phase:
+
+| Phase | `{skill_arguments}` |
+|-------|---------------------|
+| 1 | `{initial_context}` if set, otherwise `{slug}` — passes the user's original prompt/file path so Phase 1 can use it as the task description |
+| 2-6 | `{slug}` — these phases read prior artifacts, no initial context needed |
 
 ### Phase-Specific Instructions
 

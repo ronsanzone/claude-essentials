@@ -15,6 +15,7 @@ flowchart TD
     C["Phase 3: Design Discussion\n/dw-03-design-discussion\n→ 03-design-discussion.md"]
     D["Phase 4: Structure Outline\n/dw-04-outline\n→ 04-structure-outline.md"]
     E["Phase 5: Plan\n/dw-05-plan\n→ 05-plan.md"]
+    E5b["Phase 5b: Plan Review (optional)\n/dw-05b-plan-review\n→ 05b-plan-review.md"]
     F1["Phase 6A: Implement\n/dw-06a-implement\nSingle-session + review"]
     F2["Phase 6B: Implement\n/dw-06b-implement-subagents\nPer-task subagents + 2-stage review"]
     F3["Phase 6: Implement\n/dw-06-implement\nFlexible delegation"]
@@ -24,9 +25,10 @@ flowchart TD
     A --> FW --> B
     B --> PR --> C
     C --> D --> E
-    E --> F1
-    E --> F2
-    E --> F3
+    E --> E5b
+    E5b --> F1
+    E5b --> F2
+    E5b --> F3
 ```
 
 Use `/deep-work <slug>` to check pipeline progress or start a new task.
@@ -40,8 +42,9 @@ Use `/deep-work <slug>` to check pipeline progress or start a new task.
 | 3 | `dw-03-design-discussion` | Combine research with original prompt; explore design options, evaluate tradeoffs, make decisions | `03-design-discussion.md` |
 | 4 | `dw-04-outline` | Map design decisions to concrete file changes organized into implementable phases | `04-structure-outline.md` |
 | 5 | `dw-05-plan` | Expand outline into fully detailed plan — every task has enough detail that the implementing agent makes no design decisions | `05-plan.md` |
-| 6A | `dw-06a-implement` | Execute plan in single session: batches of 3 tasks → report → continue/apply feedback → final code review | `06-completion.md` |
-| 6B | `dw-06b-implement-subagents` | Fresh subagent per task with two-stage review (spec compliance → code quality) | `06-completion.md` |
+| 5b | `dw-05b-plan-review` | Adversarial review of the plan for requirements gaps, logic bugs, security, performance, and code quality (optional) | `05b-plan-review.md` |
+| 6A | `dw-06a-implement` | Execute plan in single session: batches of 3 tasks → report → continue/apply feedback → session code review | `06-completion.md` |
+| 6B | `dw-06b-implement-subagents` | Fresh subagent per task with two-stage review (spec compliance → code quality) + session code review | `06-completion.md` |
 | 6 | `dw-06-implement` | Flexible: choose subagent-driven, parallel session, or manual execution | `06-completion.md` |
 
 All artifacts are stored in `~/notes/context-engineering/<repo>/<topic-slug>/` with a `.state.json` file tracking phase completion.
@@ -55,6 +58,7 @@ All artifacts are stored in `~/notes/context-engineering/<repo>/<topic-slug>/` w
 | **pr-review** | `/pr-review <github-url>` | Multi-agent ensemble review — 6 parallel agents (docs compliance, bugs, security, history, correctness, quality) produce a report for human review before posting |
 | **quick-review** | `/quick-review <owner/repo> <pr>` | Single-pass expert review with severity-ranked findings (critical → minor) |
 | **pr-description** | `/pr-description [context-files...]` | Generate reviewer-focused PR descriptions from git changes; finds and fills PR templates |
+| **submit-pr** | `/submit-pr` | Full PR submission workflow — creates draft PRs or pushes updates to existing ones |
 | **session-retrospective** | `/session-retrospective` | Analyze session process efficiency — scores context engineering, tool usage, sub-agent work, and cost efficiency (1-5) |
 
 ---
@@ -65,6 +69,15 @@ All artifacts are stored in `~/notes/context-engineering/<repo>/<topic-slug>/` w
 |-------|---------|---------|
 | **tmux-stalker** | `/tmux-stalker` | Read content from any tmux pane — useful for checking long-running processes, reviewing logs, debugging across sessions |
 | **tmux-stalker-summarized** | `/tmux-stalker-summarized` | Context-efficient summaries of tmux pane content (test output, stack traces, logs) |
+
+---
+
+### Workflow Skills
+
+| Skill | Command | Purpose |
+|-------|---------|---------|
+| **refine-ticket** | `/refine-ticket` | Interactively refine a Jira ticket, pasted text, or file into a structured `ticket.md` ready for the deep-work pipeline |
+| **investigate-and-fix** | `/investigate-and-fix <ticket>` | Single-session alternative to the full pipeline — investigate, research, propose, plan, and implement for well-scoped bug fixes or small features |
 
 ---
 
@@ -137,18 +150,22 @@ claude-essentials/
 │   ├── docs/
 │   │   └── software-design-philosophy.md
 │   ├── skills/
-│   │   ├── deep-work/                   # Pipeline orchestrator
+│   │   ├── deep-work/                   # Pipeline guide & progress checker
 │   │   ├── dw-01-research-questions/    # Phase 1
 │   │   ├── dw-02-research/              # Phase 2
 │   │   ├── dw-03-design-discussion/     # Phase 3
 │   │   ├── dw-04-outline/               # Phase 4
 │   │   ├── dw-05-plan/                  # Phase 5
+│   │   ├── dw-05b-plan-review/          # Phase 5b (optional adversarial review)
 │   │   ├── dw-06-implement/             # Phase 6 (flexible)
 │   │   ├── dw-06a-implement/            # Phase 6A (single-session)
 │   │   ├── dw-06b-implement-subagents/  # Phase 6B (subagents)
+│   │   ├── refine-ticket/               # Pre-pipeline ticket refinement
+│   │   ├── investigate-and-fix/         # Single-session bug fix workflow
 │   │   ├── pr-description/
 │   │   ├── pr-review/
 │   │   ├── quick-review/
+│   │   ├── submit-pr/                   # PR creation/update workflow
 │   │   ├── session-retrospective/
 │   │   ├── software-design-philosophy/
 │   │   ├── generate-postman-collection/
