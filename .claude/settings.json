@@ -1,6 +1,5 @@
 {
   "cleanupPeriodDays": 210,
-  "showThinkingSummaries": true,
   "env": {
     "CLAUDE_CODE_EFFORT_LEVEL": "high",
     "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
@@ -14,7 +13,6 @@
     "pr": ""
   },
   "permissions": {
-    "defaultMode": "acceptEdits",
     "allow": [
       "Bash(sed -n)",
       "Bash(bazel run fern:*)",
@@ -22,6 +20,7 @@
       "Edit(~/notes/context-engineering/**)",
       "Write(~/notes/context-engineering/**)"
     ],
+    "defaultMode": "acceptEdits",
     "additionalDirectories": [
       "~/notes/context-engineering"
     ]
@@ -115,9 +114,6 @@
     "superpowers@claude-plugins-official": true,
     "context7@claude-plugins-official": true
   },
-  "alwaysThinkingEnabled": true,
-  "autoDreamEnabled": true,
-  "skipDangerousModePermissionPrompt": true,
   "sandbox": {
     "filesystem": {
       "allowRead": [
@@ -127,5 +123,10 @@
     "excludedCommands": [
       "bazel run fern"
     ]
-  }
+  },
+  "alwaysThinkingEnabled": true,
+  "autoDreamEnabled": true,
+  "showThinkingSummaries": true,
+  "skipDangerousModePermissionPrompt": true,
+  "skipAutoPermissionPrompt": true
 }
