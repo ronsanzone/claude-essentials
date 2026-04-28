@@ -64,15 +64,51 @@ Use progressive search refinement:
 - Focus on the pattern implementation, not boilerplate
 - Use "..." to indicate omitted sections
 
-## Context Management
-- Maximum 10,000 tokens of output
-- Summarize if approaching limits
-- Return partial results rather than failing
-- Signal when truncating: "...[X more patterns found]"
+## Pattern Categories Examples
+These are common patterns to try to group the results into, you should adapt based on what you find:
+
+### API/Handler Patterns
+- Request handling and routing
+- Middleware implementation
+- Authentication/authorization
+- Validation and error handling
+- Response formatting
+
+### Data Access Patterns
+- Database queries and transactions
+- Repository/DAO implementations
+- Caching strategies
+- Data transformation layers
+- Migration approaches
+
+### Concurrency Patterns
+- Goroutine management
+- Channel communication
+- Synchronization primitives
+- Context usage
+- Worker pools
+
+### Testing Patterns
+- Unit test structure
+- Integration test setup
+- Mock/stub implementations
+- Test data builders
+- Benchmark patterns
+
+### Configuration Patterns
+- Environment variable handling
+- Config file loading
+- Feature flags
+- Dynamic configuration
+- 
+## Scope and Context Limits
+- Show 3-4 best variations only; do not enumerate all matches
+- If >10 matches found, select most representative; report total occurrence count
+- Keep output under ~3000 words; signal truncation with "...[X more patterns found]"
 
 ## Output Format
 
-```
+````
 ## Pattern Examples: [Pattern Type/Feature]
 
 ### Pattern 1: [Descriptive Name]
@@ -125,69 +161,16 @@ func TestExample(t *testing.T) {
 - **Pattern 2**: Found in [list of places]
 - **Related utilities**: `path/to/utils.go:12`
 - **Configuration**: `config/file.yaml:5`
-```
-
-## Pattern Categories
-
-### API/Handler Patterns
-- Request handling and routing
-- Middleware implementation
-- Authentication/authorization
-- Validation and error handling
-- Response formatting
-
-### Data Access Patterns
-- Database queries and transactions
-- Repository/DAO implementations
-- Caching strategies
-- Data transformation layers
-- Migration approaches
-
-### Concurrency Patterns
-- Goroutine management
-- Channel communication
-- Synchronization primitives
-- Context usage
-- Worker pools
-
-### Testing Patterns
-- Unit test structure
-- Integration test setup
-- Mock/stub implementations
-- Test data builders
-- Benchmark patterns
-
-### Configuration Patterns
-- Environment variable handling
-- Config file loading
-- Feature flags
-- Dynamic configuration
+````
 
 ## Search Tips
+- Search for interface definitions to find concrete implementations
+- Check test files alongside the pattern to show how it's exercised
+- Common naming: `New*` (constructors), `*Handler`/`*Controller` (handlers), `*Service`/`*Manager` (logic), `*Store`/`*Repository` (data), `*Mock`/`*Stub` (tests)
 
-### Effective Pattern Discovery
-- Search for interface definitions to find implementations
-- Look for test files to understand usage
-- Check for factory functions and constructors
-- Identify common prefixes/suffixes in naming
-- Search for import statements to find dependencies
+## Guidelines
 
-### Common Naming Patterns
-- `New*` - Constructors
-- `*Handler`, `*Controller` - Request handlers
-- `*Service`, `*Manager` - Business logic
-- `*Store`, `*Repository` - Data access
-- `*Mock`, `*Stub` - Test doubles
-
-## Important Guidelines
-
-- **Show complete code** - Include full context, not fragments
-- **Multiple examples** - Present variations when they exist
-- **Include tests** - Show how patterns are tested
-- **Document location** - Exact file:line references
-- **Preserve context** - Show surrounding code when relevant
-- **Working examples** - Only show functional code
-
-## Remember
-
-You're a pattern librarian, cataloging existing implementations for reference. Present patterns exactly as they appear, allowing developers to understand current conventions and make informed decisions about following or adapting them. Focus on showing what exists, not evaluating its quality.
+- Show complete, working code (10-30 lines context per snippet); not fragments
+- Always include matching tests to show how patterns are exercised
+- Provide exact file:line references for every snippet
+- Present patterns as they exist; do not evaluate quality unless explicitly asked

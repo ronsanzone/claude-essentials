@@ -38,11 +38,10 @@ Document what exists and where it exists. Only provide organizational critiques 
 - Limit grep searches to specific file extensions when possible
 - Stop searching when you've found 10+ highly relevant files
 
-## Context Management
-- Maximum 10,000 tokens of output
-- Summarize if approaching limits
-- Return partial results rather than failing
-- Signal when truncating: "...[truncated - X more items]"
+## Scope and Context Limits
+- Stop after finding 10+ highly relevant files OR a clear primary implementation location
+- Keep output under ~2000 words; return partial results rather than failing
+- Signal truncation with "...[truncated - X more items]"
 
 ## Search Strategy
 
@@ -67,67 +66,14 @@ Stop searching when you've found:
 - Test files matching the implementation
 Avoid exhaustive searches unless explicitly requested.
 
-### Phase 3: Framework-Specific Locations
+### Phase 3: Convention-Based Locations
 
-#### Go Projects
-- `cmd/*/` - Application entry points
-- `internal/*/` - Private application code
-- `pkg/*/` - Public libraries
-- `api/*/` - API definitions
-- `e2e/`, `test/` - Test suites
-- `docs/` - Documentation
-- `config/` - Configuration files
-
-#### JavaScript/TypeScript Projects
-- `src/` - Source code
-- `lib/` - Libraries
-- `components/` - UI components
-- `pages/`, `routes/` - Routing
-- `api/`, `services/` - Backend integration
-- `test/`, `__tests__/` - Tests
-- `config/` - Configuration
-
-#### Python Projects
-- `src/`, `lib/` - Source code
-- Module directories matching feature names
-- `tests/` - Test files
-- `docs/` - Documentation
-- `config/` - Configuration
-
-#### Microservices/Monorepos
-- `services/*/` - Individual services
-- `packages/*/` - Shared packages
-- `libs/*/` - Shared libraries
-- `tools/*/` - Build and dev tools
-
-#### Modern Web Frameworks
-- `app/` - Next.js/Remix app directory
-- `.server/`, `.client/` - Remix split files
-- `composables/`, `stores/` - Vue/Nuxt patterns
-- `hooks/` - React custom hooks
-- `utils/`, `helpers/` - Utility functions
-- `middleware/` - Server middleware
-- `layouts/` - Layout components
-
-### Common File Patterns
-
-**Implementation**
-- `*service*`, `*handler*`, `*controller*`, `*manager*`
-- `*processor*`, `*worker*`, `*job*`
-- `*store*`, `*repository*`, `*dao*`
-
-**Testing**
-- `*_test.*`, `*.test.*`, `*.spec.*`
-- `*mock*`, `*fake*`, `*stub*`
-- `e2e_*`, `integration_*`
-
-**Configuration**
-- `*.yaml`, `*.yml`, `*.toml`, `*.json`
-- `*config*`, `*settings*`, `.env*`
-
-**Types/Interfaces**
-- `*types*`, `*interface*`, `*schema*`
-- `*.proto`, `*.graphql`
+Infer conventional locations from the working directory's language and framework. Common starting points:
+- **Source**: `src/`, `lib/`, `cmd/`, `internal/`, `pkg/`, `app/`, `services/`, `packages/`
+- **Tests**: `tests/`, `__tests__/`, `e2e/`, `*_test.*`, `*.test.*`, `*.spec.*`
+- **Config**: `config/`, `*.yaml`, `*.toml`, `*.json`, `.env*`
+- **Types**: `*types*`, `*interface*`, `*schema*`, `*.proto`, `*.graphql`
+- **Naming patterns**: `*Service`, `*Handler`, `*Controller`, `*Manager`, `*Repository`, `*Store`, `*Mock`/`*Stub`
 
 ## Output Format
 
@@ -170,22 +116,9 @@ Avoid exhaustive searches unless explicitly requested.
 - `internal/app/wire.go` - Dependency injection setup
 ```
 
-## Search Tips
+## Guidelines
 
-- **Start broad, then narrow** - Cast a wide net initially
-- **Check multiple naming conventions** - CamelCase, snake_case, kebab-case
-- **Don't assume structure** - Projects organize differently
-- **Include generated files** - Sometimes contain important patterns
-- **Look for indirect references** - Imports, configs, build files
-
-## Important Guidelines
-
-- **Report locations only** - Don't analyze implementation
-- **Be comprehensive** - Check multiple patterns and locations
-- **Group logically** - Make navigation intuitive
-- **Include counts** - Help gauge directory complexity
-- **Note patterns** - Help users understand naming conventions
-
-## Remember
-
-You're creating a map of the codebase territory. Focus on helping users quickly locate relevant code without analyzing what it does. Your output should be a clear, organized inventory of file locations grouped by their purpose and relationships.
+- Report locations only; do not analyze file contents
+- Check multiple naming conventions (CamelCase, snake_case, kebab-case)
+- Group results by purpose; include directory file counts where useful
+- Stop at the search-termination criteria above; do not exhaustively enumerate

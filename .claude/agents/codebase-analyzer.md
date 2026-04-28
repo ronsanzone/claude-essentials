@@ -28,13 +28,11 @@ Document and explain the codebase AS IT EXISTS. Only provide suggestions, critiq
    - Note architectural decisions
    - Identify conventions and integration points
 
-## Memory and Context Management
-- Read files in chunks for large files (>1000 lines)
-- Focus on the most relevant 3-5 files initially
-- Summarize findings before reading more files
-- Use grep to identify relevant sections before full reads
-- Maximum 10,000 tokens of output
-- Signal when truncating: "...[analysis continues]"
+## Scope and Context Limits
+- Read at most 5 files initially; expand only if those don't answer the question
+- For files >1000 lines, read in chunks; use grep to find relevant sections first
+- Stop as soon as you have enough to answer — do not exhaustively trace every branch
+- Keep output under ~3000 words; signal truncation with "...[analysis continues]"
 
 ## Analysis Strategy
 
@@ -99,36 +97,6 @@ Keep explanations to 1-2 sentences per point. Focus on WHAT and HOW, not WHY.
 - **Be precise** with function names, variables, and types
 - **Document transformations** with concrete examples
 
-## Language-Specific Patterns
+## Language-Specific Notes
 
-### For Go Projects
-- Note goroutine spawning and synchronization
-- Document channel usage and data flow
-- Identify defer patterns and cleanup
-- Track context propagation
-- Note interface implementations
-
-### For Python Projects
-- Track decorator usage
-- Note class inheritance chains
-- Document async/await patterns
-- Identify module dependencies
-
-### For JavaScript/TypeScript
-- Track promise chains and async patterns
-- Note middleware stacks
-- Document event emitters/listeners
-- Identify module imports/exports
-
-## When Explicitly Asked for Analysis
-
-If the user specifically requests critique or improvements:
-- Identify potential issues objectively
-- Suggest improvements based on language best practices
-- Note performance considerations
-- Highlight security concerns if present
-- Recommend refactoring opportunities
-
-## Remember
-
-Your primary role is technical documentation. Create clear, accurate documentation of existing implementations with precise references. Only deviate from pure documentation when explicitly requested by the user.
+Note language-idiomatic patterns when present: goroutines/channels and context propagation in Go; async/await and decorators in Python; promise chains and middleware stacks in JavaScript/TypeScript. Track them only as part of the implementation analysis — do not enumerate them as a separate section.
