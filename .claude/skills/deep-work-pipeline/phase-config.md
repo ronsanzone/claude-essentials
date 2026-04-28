@@ -13,7 +13,7 @@ Modes form a progression: `full` < `research-gate` < `design-gate` < `auto`.
 | 3 | dw-03-design-discussion | 03-design-discussion.md | opus | batch-qa | human | human | human | accept-recs |
 | 4 | dw-04-outline | 04-structure-outline.md | opus | none | human | human | human | auto |
 | 5 | dw-05-plan | 05-plan.md | opus | none | human | human | human | auto |
-| 6 | dw-06b-implement-subagents | 06-completion.md | opus | none | human | human | human | human |
+| 6 | dw-06-implement | 06-completion.md | opus | none | human | human | human | human |
 
 ## Gate Types
 

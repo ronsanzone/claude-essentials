@@ -23,10 +23,8 @@ The team lead is a thin dispatcher — it does NOT read artifacts or accumulate 
    - Valid modes: `full`, `research-gate`, `design-gate`, `auto`
    - If invalid mode, report error and ask user to choose from valid modes
    - Store the initial context (stripped of `--slug` and `--mode` flags) as `initial_context` for Phase 1
-2. Derive repo: `basename $(git remote get-url origin 2>/dev/null | sed 's/.git$//') 2>/dev/null || basename $(pwd)`
-3. Set artifact directory: `~/notes/context-engineering/<repo>/<topic-slug>/`
-4. Create artifact directory if it doesn't exist
-5. Report: "Pipeline mode: **<mode>**. Topic: **<topic-slug>**." (and if initial context is present: "Initial context captured for Phase 1.")
+2. Run `~/.claude/skills/deep-work/dw-setup.sh "<topic-slug>"` to derive `REPO` and `ARTIFACT_DIR` (also creates the artifact directory).
+3. Report: "Pipeline mode: **<mode>**. Topic: **<topic-slug>**." (and if initial context is present: "Initial context captured for Phase 1.")
 
 ## Resume Check
 
@@ -195,19 +193,18 @@ The teammate will work and eventually the Agent call will return with the teamma
 This case is handled via the teammate prompt directive in Step 2. The teammate auto-accepts recommendations and completes without sending `STATUS: needs-input`. The agent returns with `STATUS: complete`. Proceed as with `auto` gate — check `.state.json` and advance.
 
 **Handling `STATUS: needs-input` on human-gated Phase 3:**
-When Phase 3 is human-gated and the teammate sends `STATUS: needs-input`:
-1. The teammate's final message contains the design questions summary
-2. Present the questions to the user:
-   > "Phase 3 has N design questions to resolve.
-   >
-   > [questions summary from teammate]
-   >
-   > **Answer in batch** — provide your choices (e.g., 'DQ-1: A, DQ-3: B')
-   > **Accept all recommendations** — use the teammate's picks
-   > **Take over** — work with the teammate directly"
-3. Relay the user's answers to the teammate via `SendMessage`
-4. Wait for teammate to finalize and report `STATUS: complete`
-5. Proceed to the normal human gate
+
+The teammate's final message contains the design questions summary. Present them to the user via AskUserQuestion:
+
+> "Phase 3 has N design questions to resolve.
+>
+> [questions summary from teammate]
+>
+> **Answer in batch** — provide your choices (e.g., 'DQ-1: A, DQ-3: B')
+> **Accept all recommendations** — use the teammate's picks
+> **Take over** — work with the teammate directly"
+
+Relay the answers to the teammate via `SendMessage`, wait for `STATUS: complete`, then proceed to the normal human gate.
 
 **Handling `STATUS: error` (any gate type):**
 Stop auto-advance. Present the error to the user:
@@ -314,26 +311,11 @@ No special constraints. Run the skill as documented.
 No special constraints. Run the skill as documented.
 ```
 
-**Phase 6** (implement-subagents):
+**Phase 6** (implement):
 ```
 No special constraints. Run the skill as documented.
 This phase dispatches its own subagents internally for implementation tasks.
 ```
-
-## Teammate Message Protocol
-
-Teammates prefix their messages with a status tag for unambiguous routing:
-
-- **`STATUS: complete`** — Phase work is done. Followed by summary bullets and artifact path.
-  - Auto gate: lead checks `.state.json`, advances.
-  - Human gate: lead presents summary to user, runs gate.
-- **`STATUS: needs-input`** — Teammate needs user decisions (Phase 3 design questions). Followed by the questions.
-  - Human gate: lead proxies questions to user, relays answers.
-  - Accept-recs gate: should not occur (teammate prompt prevents it).
-- **`STATUS: error`** — Something failed. Followed by description.
-  - All gates: lead stops auto-advance, presents error to user.
-
-The lead routes based on the status prefix and the current gate type.
 
 ## Firewall Enforcement (Phase 2)
 

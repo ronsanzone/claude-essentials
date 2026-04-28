@@ -18,10 +18,8 @@ Assume they are a skilled developer, but know almost nothing about our toolset o
 
 ## Setup
 
-1. Parse `$ARGUMENTS` as `<topic-slug>`
-   - If empty, ask user via AskUserQuestion
-2. Derive repo: `basename $(git remote get-url origin 2>/dev/null | sed 's/.git$//') 2>/dev/null || basename $(pwd)`
-3. Set artifact directory: `~/notes/context-engineering/<repo>/<topic-slug>/`
+1. Run `~/.claude/skills/deep-work/dw-setup.sh "$ARGUMENTS"` and parse stdout for `REPO`, `TOPIC_SLUG`, `ARTIFACT_DIR`.
+   - If the script exits 2 (`MISSING_SLUG` on stderr), ask user via AskUserQuestion for the topic slug, then re-run with the slug.
 
 ## Pre-flight Validation
 
@@ -209,4 +207,4 @@ status: complete
 
 1. Present full plan to user for review
 2. Update `.state.json` with `current_phase: 5, completed_phases: [1, 2, 3, 4, 5]`
-3. Instruct: "Plan ready. Optionally run `/dw-plan-review <topic-slug>` for an adversarial review. When ready, run `/dw-06a-implement <topic-slug>` in a **fresh conversation** to execute this plan in a single session, or `/dw-06b-implement-subagents <topic-slug>` for parallel sub-agent execution."
+3. Instruct: "Plan ready. Optionally run `/dw-plan-review <topic-slug>` for an adversarial review. When ready, run `/dw-06-implement <topic-slug>` in a **fresh conversation** to execute this plan."

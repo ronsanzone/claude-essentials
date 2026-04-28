@@ -1,6 +1,7 @@
 ---
 name: deep-work
 description: "Use when starting or checking progress on a deep-work pipeline. Shows pipeline overview, phase progress, and which command to run next in a fresh conversation."
+disable-model-invocation: true
 ---
 
 # Deep Work Pipeline Guide
@@ -35,7 +36,7 @@ digraph deep_work {
         p5 [label="/dw-plan\nExact tasks, patterns, tests"];
         p5b [label="/dw-plan-review\nAdversarial quality review\n(optional)"
              style="filled,rounded,dashed" fillcolor="#ffdddd"];
-        p6 [label="/dw-implement\nExecute the plan"];
+        p6 [label="/dw-06-implement\nExecute the plan"];
     }
 
     start [label="User prompt" shape=doublecircle];
@@ -64,7 +65,7 @@ digraph deep_work {
 | 4 | `/dw-outline <slug>` | Map decisions to file changes |
 | 5 | `/dw-plan <slug>` | Create detailed implementation plan |
 | 5b | `/dw-plan-review <slug>` | Adversarial quality review (optional, run standalone) |
-| 6 | `/dw-implement <slug>` | Execute the plan |
+| 6 | `/dw-06-implement <slug>` | Execute the plan |
 
 **CRITICAL:** Each phase MUST run in a **fresh conversation**. The bias firewall
 between Phase 1→2 requires that research never sees the original prompt.
@@ -81,8 +82,8 @@ All phases read/write artifacts at:
 ## Check Progress
 
 If `$ARGUMENTS` is provided as a topic-slug:
-1. Derive repo: `basename $(git remote get-url origin 2>/dev/null | sed 's/.git$//') 2>/dev/null || basename $(pwd)`
-2. Read `.state.json` from `~/notes/context-engineering/<repo>/<topic-slug>/`
+1. Run `~/.claude/skills/deep-work/dw-setup.sh "$ARGUMENTS"` to derive `ARTIFACT_DIR`.
+2. Read `.state.json` from `$ARTIFACT_DIR`
 3. Report completed phases, current status, and next command to run
 4. If no `.state.json` found, suggest starting with `/dw-research-questions <slug>`
 

@@ -16,9 +16,7 @@ flowchart TD
     D["Phase 4: Structure Outline\n/dw-04-outline\n→ 04-structure-outline.md"]
     E["Phase 5: Plan\n/dw-05-plan\n→ 05-plan.md"]
     E5b["Phase 5b: Plan Review (optional)\n/dw-05b-plan-review\n→ 05b-plan-review.md"]
-    F1["Phase 6A: Implement\n/dw-06a-implement\nSingle-session + review"]
-    F2["Phase 6B: Implement\n/dw-06b-implement-subagents\nPer-task subagents + 2-stage review"]
-    F3["Phase 6: Implement\n/dw-06-implement\nFlexible delegation"]
+    F1["Phase 6: Implement\n/dw-06-implement\nPer-task subagents + 2-stage review"]
     FW{{"🔥 Bias Firewall 🔥\nUser copies ONLY questions\nto fresh conversation"}}
     PR(("Original prompt\nre-introduced"))
 
@@ -27,8 +25,6 @@ flowchart TD
     C --> D --> E
     E --> E5b
     E5b --> F1
-    E5b --> F2
-    E5b --> F3
 ```
 
 Use `/deep-work <slug>` to check pipeline progress or start a new task.
@@ -43,9 +39,7 @@ Use `/deep-work <slug>` to check pipeline progress or start a new task.
 | 4 | `dw-04-outline` | Map design decisions to concrete file changes organized into implementable phases | `04-structure-outline.md` |
 | 5 | `dw-05-plan` | Expand outline into fully detailed plan — every task has enough detail that the implementing agent makes no design decisions | `05-plan.md` |
 | 5b | `dw-05b-plan-review` | Adversarial review of the plan for requirements gaps, logic bugs, security, performance, and code quality (optional) | `05b-plan-review.md` |
-| 6A | `dw-06a-implement` | Execute plan in single session: batches of 3 tasks → report → continue/apply feedback → session code review | `06-completion.md` |
-| 6B | `dw-06b-implement-subagents` | Fresh subagent per task with two-stage review (spec compliance → code quality) + session code review | `06-completion.md` |
-| 6 | `dw-06-implement` | Flexible: choose subagent-driven, parallel session, or manual execution | `06-completion.md` |
+| 6 | `dw-06-implement` | Fresh subagent per task with two-stage review (spec compliance → code quality) + session code review | `06-completion.md` |
 
 All artifacts are stored in `~/notes/context-engineering/<repo>/<topic-slug>/` with a `.state.json` file tracking phase completion.
 
@@ -157,9 +151,7 @@ claude-essentials/
 │   │   ├── dw-04-outline/               # Phase 4
 │   │   ├── dw-05-plan/                  # Phase 5
 │   │   ├── dw-05b-plan-review/          # Phase 5b (optional adversarial review)
-│   │   ├── dw-06-implement/             # Phase 6 (flexible)
-│   │   ├── dw-06a-implement/            # Phase 6A (single-session)
-│   │   ├── dw-06b-implement-subagents/  # Phase 6B (subagents)
+│   │   ├── dw-06-implement/             # Phase 6 (subagent-driven)
 │   │   ├── refine-ticket/               # Pre-pipeline ticket refinement
 │   │   ├── investigate-and-fix/         # Single-session bug fix workflow
 │   │   ├── pr-description/

@@ -16,6 +16,12 @@
     "allow": [
       "Bash(sed -n)",
       "Bash(bazel run fern:*)",
+      "Bash(evergreen list-patches*)",
+      "Bash(npm view *)",
+      "Bash(~/.claude/skills/deep-work/dw-setup.sh:*)",
+      "mcp__devprod-mcp-gateway__evg_list_user_recent_patches_evergreen",
+      "mcp__devprod-mcp-gateway__evg_get_patch_failed_jobs_evergreen",
+      "mcp__devprod-mcp-gateway__jira_get_issue",
       "Read(~/notes/context-engineering/**)",
       "Edit(~/notes/context-engineering/**)",
       "Write(~/notes/context-engineering/**)"
@@ -107,12 +113,12 @@
     "command": "~/.claude/statusline-command.sh"
   },
   "enabledPlugins": {
-    "code-review@claude-plugins-official": true,
-    "context-efficient-tools@xdg-claude": true,
+    "code-review@claude-plugins-official": false,
+    "context-efficient-tools@xdg-claude": false,
     "frontend-design@claude-plugins-official": true,
-    "jira-cli@xdg-claude": true,
+    "jira-cli@xdg-claude": false,
     "superpowers@claude-plugins-official": true,
-    "context7@claude-plugins-official": true
+    "context7@claude-plugins-official": false
   },
   "sandbox": {
     "filesystem": {
@@ -125,8 +131,11 @@
     ]
   },
   "alwaysThinkingEnabled": true,
+  "effortLevel": "high",
   "autoDreamEnabled": true,
   "showThinkingSummaries": true,
   "skipDangerousModePermissionPrompt": true,
+  "theme": "dark-daltonized",
+  "editorMode": "vim",
   "skipAutoPermissionPrompt": true
 }

@@ -12,10 +12,8 @@ without the "how exactly." A table of contents for the implementation plan.
 
 ## Setup
 
-1. Parse `$ARGUMENTS` as `<topic-slug>`
-   - If empty, ask user via AskUserQuestion
-2. Derive repo: `basename $(git remote get-url origin 2>/dev/null | sed 's/.git$//') 2>/dev/null || basename $(pwd)`
-3. Set artifact directory: `~/notes/context-engineering/<repo>/<topic-slug>/`
+1. Run `~/.claude/skills/deep-work/dw-setup.sh "$ARGUMENTS"` and parse stdout for `REPO`, `TOPIC_SLUG`, `ARTIFACT_DIR`.
+   - If the script exits 2 (`MISSING_SLUG` on stderr), ask user via AskUserQuestion for the topic slug, then re-run with the slug.
 
 ## Pre-flight Validation
 

@@ -13,10 +13,8 @@ not confirm the plan is good.
 
 ## Setup
 
-1. Parse `$ARGUMENTS` as `<topic-slug>`
-   - If empty, ask user via AskUserQuestion
-2. Derive repo: `basename $(git remote get-url origin 2>/dev/null | sed 's/.git$//') 2>/dev/null || basename $(pwd)`
-3. Set artifact directory: `~/notes/context-engineering/<repo>/<topic-slug>/`
+1. Run `~/.claude/skills/deep-work/dw-setup.sh "$ARGUMENTS"` and parse stdout for `REPO`, `TOPIC_SLUG`, `ARTIFACT_DIR`.
+   - If the script exits 2 (`MISSING_SLUG` on stderr), ask user via AskUserQuestion for the topic slug, then re-run with the slug.
 
 ## Pre-flight Validation
 
@@ -163,6 +161,6 @@ advisory_count: <N>
 1. Present the review to the user
 2. Update `.state.json`: add `"plan_review"` to `completed_phases` if not present
 3. Based on verdict:
-   - **APPROVED:** "Plan review complete. No blocking issues. Proceed with `/dw-06a-implement <topic-slug>` or `/dw-06b-implement-subagents <topic-slug>` in a fresh conversation."
+   - **APPROVED:** "Plan review complete. No blocking issues. Proceed with `/dw-06-implement <topic-slug>` in a fresh conversation."
    - **APPROVED WITH CONDITIONS:** "Plan review found Important issues that should be addressed. Review the findings above and update `05-plan.md`, then proceed to implementation."
    - **REVISE:** "Plan review found Critical issues. Address the findings above and update `05-plan.md` before proceeding. Re-run `/dw-05b-plan-review <topic-slug>` after revisions if desired."

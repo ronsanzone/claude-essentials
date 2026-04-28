@@ -11,8 +11,6 @@ Interactively refine a ticket into a structured `ticket.md` file. Walks through 
 
 ## Hard Rules
 
-- **One question at a time.** Never batch multiple questions. Use `AskUserQuestion` for every question.
-- **Never ask directly in response text.** Always use `AskUserQuestion`.
 - **Never auto-fill content, but do identify gaps.** The user provides all information. You structure it. However, you MUST analyze each category and call out specific gaps, ambiguities, or missing details to help the user refine effectively.
 - **Fixed categories only.** Do not add, skip, or reorder categories.
 - **No technical investigation.** Do not suggest reproduction steps, environment details, investigation starting points, or code analysis. That is the pipeline's job. Context gathering (reading linked docs) is NOT technical investigation — it is required.
@@ -51,11 +49,9 @@ Interactively refine a ticket into a structured `ticket.md` file. Walks through 
 
 2. Store raw content as `<raw-ticket>`.
 
-3. **Gather linked context via Glean.** Scan the ticket description and comments for URLs (Google Docs, Confluence pages, design docs, etc.) and important keywords/topics.
-   - **For each URL found:** Use the Glean MCP to read the document content. Query with the doc URL or title.
-   - **General context search:** Also run a Glean search using the ticket summary/key terms to surface related internal docs, Confluence pages, or Slack threads that weren't explicitly linked.
-   - Store all gathered content as `<linked-context>`. This feeds into your per-category analysis and the Gathered Context section.
-   - If a document cannot be read, note it as "Could not fetch: <url>" and move on.
+3. **Gather linked context via Glean.** Scan the ticket and comments for URLs and key topics.
+   - For each URL found, use the Glean MCP to read it (querying by URL or title). Also run a general Glean search on the ticket summary to surface related internal docs not explicitly linked.
+   - Store all gathered content as `<linked-context>` for per-category analysis. If a document cannot be read, note "Could not fetch: <url>" and move on.
 
 4. Display:
    > **Raw ticket:**

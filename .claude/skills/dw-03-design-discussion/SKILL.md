@@ -13,10 +13,8 @@ the prompt safely re-enters the pipeline here.
 
 ## Setup
 
-1. Parse `$ARGUMENTS` as `<topic-slug>`
-   - If empty, ask user via AskUserQuestion
-2. Derive repo: `basename $(git remote get-url origin 2>/dev/null | sed 's/.git$//') 2>/dev/null || basename $(pwd)`
-3. Set artifact directory: `~/notes/context-engineering/<repo>/<topic-slug>/`
+1. Run `~/.claude/skills/deep-work/dw-setup.sh "$ARGUMENTS"` and parse stdout for `REPO`, `TOPIC_SLUG`, `ARTIFACT_DIR`.
+   - If the script exits 2 (`MISSING_SLUG` on stderr), ask user via AskUserQuestion for the topic slug, then re-run with the slug.
 
 ## Pre-flight Validation
 
@@ -61,14 +59,7 @@ Before identifying decisions, distill research into structured sections:
   and note why.
 
 ### Step 3: Identify design questions
-Based on the gap between "current state" and "desired end state," identify every
-design question that needs resolution. Common types:
-- Where should new code live? (module/package/directory)
-- What pattern should it follow? (based on existing patterns from research)
-- How should it integrate with existing code? (based on boundaries from research)
-- What should the API/interface look like?
-- How should edge cases be handled?
-- What should be tested and how?
+Based on the gap between "current state" and "desired end state," identify every design question that needs resolution. Common types include placement (where new code lives), pattern selection (which existing pattern to mirror), integration (how to connect with existing code), API/interface shape, edge-case handling, and testability.
 
 ### Step 4: Build options
 For EACH question, create 2-4 options. Every option MUST:
@@ -192,31 +183,15 @@ Present a summary of the design document to the user, then ask via AskUserQuesti
 > (M from research, K from targeted exploration).
 > How would you like to resolve them?
 >
-> 1. **Batch** — Review the document, then answer all questions in one response
->    (reference by ID, e.g. 'DQ-1: A, DQ-3: B')
-> 2. **Interactive** — I'll walk through each question one at a time
-> 3. **Accept recommendations** — Use my recommendations for all open questions"
+> 1. **Batch** — Answer all questions in one response, referenced by ID (e.g. 'DQ-1: A, DQ-3: B')
+> 2. **Accept recommendations** — Use my recommendations for all open questions"
 
-Execute the chosen path:
+In **Batch mode**, parse the user's response and resolve each question accordingly. In **Accept recommendations mode**, resolve all OPEN questions using the stated recommendations.
 
-**Batch mode:**
-- Tell user to review the doc and respond with their choices
-- Parse their response and update each question's Decision field
-- For each resolved question, add:
-  - `**Decision:** <chosen option>`
-  - `**Rationale:** <from user's response or recommendation>`
-  - `**Implementation implication:** <one-liner about what this means for implementation>`
-
-**Interactive mode:**
-- Present ONE question at a time via AskUserQuestion
-- Show context, options table, and recommendation
-- Record user's choice, then move to next question
-- After each answer, update the question's Decision field with rationale and
-  implementation implication
-
-**Accept recommendations mode:**
-- Resolve all OPEN questions using the stated recommendations
-- Add rationale and implementation implication for each
+For each resolved question, update the artifact:
+- `**Decision:** <chosen option>`
+- `**Rationale:** <from user's response or recommendation>`
+- `**Implementation implication:** <one-liner about what this means for implementation>`
 
 ### Step 8: Finalize artifact
 After all questions are resolved:
