@@ -16,15 +16,8 @@ by reading the codebase. Questions must NOT assume any particular solution.
    - If a file path, read the file as the task description
    - If text, use it directly as the task description
    - Extract or ask user for a `<topic-slug>` (lowercase, hyphens, no special chars)
-2. Derive repo name:
-   ```bash
-   basename $(git remote get-url origin 2>/dev/null | sed 's/.git$//') 2>/dev/null || basename $(pwd)
-   ```
-3. Create artifact directory:
-   ```bash*
-   mkdir -p ~/notes/context-engineering/<repo>/<topic-slug>
-   ```
-4. Write `00-ticket.md` to the artifact directory:
+2. Run `~/.claude/skills/deep-work/dw-setup.sh "<topic-slug>"` and parse stdout for `REPO` and `ARTIFACT_DIR` (script also creates the directory).
+3. Write `00-ticket.md` to the artifact directory:
    ```markdown
    ---
    phase: ticket
@@ -42,15 +35,20 @@ by reading the codebase. Questions must NOT assume any particular solution.
 
 ## Process
 
-### Step 1: Targeted codebase scan
+### Step 1: Distil the prompt or ticket
+Identify the key nouns, systems, and actions mentioned in the prompt. These are the seeds for your research questions. Focus on concrete components, data flows, and interactions — avoid abstract goals or desired outcomes.
+- Look for mentions of specific modules, APIs, data entities, user actions, or system behaviors.
+- Look for in scope vs out of scope hints — what the user explicitly includes or excludes.
+- Look for any stated constraints, requirements, or acceptance criteria.
+
+### Step 2: Targeted codebase scan
 Gather lightweight structural context (NOT deep implementation details):
 - List root directory structure
 - Read CLAUDE.md files for project context and conventions
-- Dispatch a codebase-locator agent: "Find files and directories related to:
-  <key nouns/systems from prompt>. Return locations grouped by purpose."
+- Dispatch a codebase-locator agent: "Find files and directories related to: <key nouns/systems from prompt>. Return locations grouped by purpose."
 
-### Step 2: Generate research questions
-Generate 5-15 questions. EVERY question must be:
+### Step 3: Generate research questions
+Generate 5-20 questions. EVERY question must be:
 - **Objective** — answerable by reading code, not by making design decisions
 - **Specific** — references concrete subsystems, not abstract concepts
 - **Grounded** — uses real module/file names from the codebase scan
@@ -72,7 +70,7 @@ Distribute across categories:
 - "Would it be better to..." — this is comparison
 - "Can we..." — this is feasibility for a specific solution
 
-### Step 3: Write artifact
+### Step 4: Write artifact
 Write `01-research-questions.md` to the artifact directory:
 ```yaml
 ---

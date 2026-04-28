@@ -1,6 +1,7 @@
 ---
 name: session-retrospective
 description: Use when a session is ending and you want to analyze process efficiency. Triggers on requests to review how a session went, evaluate context usage, or identify workflow improvements.
+disable-model-invocation: true
 ---
 
 # Session Retrospective

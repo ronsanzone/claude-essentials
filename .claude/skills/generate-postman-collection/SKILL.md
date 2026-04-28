@@ -1,6 +1,7 @@
 ---
 name: generate-postman-collection
 description: Use when the user wants to generate a Postman collection JSON file for a set of API endpoints. Triggers on requests to create Postman configs, API testing collections, or REST client imports from source code.
+disable-model-invocation: true
 ---
 
 # Generate Postman Collection

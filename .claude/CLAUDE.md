@@ -21,7 +21,13 @@ Context is our most important commodity. Maintaining a small context is a top pr
 
 * **CRITICAL - Context preservation:** - NEVER call `TaskOutput` on background agents -  Background tasks return completion notifications with `<result>` tags containing only the final message. Do NOT call `TaskOutput` to check results. `TaskOutput` returns the full conversation transcript (every tool call, file read, and intermediate message), which wastes massive amounts of context. After launching a background task, **stop and do not make any tool calls to check on it**. A `<task-notification>` will arrive automatically when it completes use that to report the result.
 
-* **Subagents for Discrete Work:** Use subagents for tasks wherever possible. Use the dedicated code analysis and exploration agents for code Explore tasks, they are designed to returned consise feedback preserving context. Prefer foreground subagents unless there is a good reason for a background agent. 
+* **Subagents for Discrete Work:** Use subagents for tasks wherever possible. Prefer foreground subagents unless there is a good reason for a background agent.
+
+* **Codebase subagent routing:** Match the task to the specialized agent — do NOT default to `Explore` or `general-purpose` when one of these fits:
+  - "where does X live / find files for X" → `codebase-locator`
+  - "how does X work / trace data flow through X" → `codebase-analyzer`
+  - "find similar implementations to model after" → `codebase-pattern-finder`
+  Reserve `Explore` for genuinely open-ended browsing where you don't yet know what you're looking for. Reserve `general-purpose` for multi-step research or implementation work that doesn't fit a specialist.
 
 * **Don't poll or re-read**: For background tasks, wait for completion once rather than repeatedly reading output files.
 

@@ -1,6 +1,6 @@
 ---
 name: codebase-analyzer
-description: Analyzes codebase implementation details. Call the codebase-analyzer agent when you need to find detailed information about specific components. As always, the more detailed your request prompt, the better! :)
+description: Produces a structured "how it works" writeup of existing code, with file:line citations on every claim and optional mermaid flow diagrams. Use when you need a durable technical artifact (data flow, control flow, integration points) — not a quick exploratory answer. Prefer over `Explore` when the result will be referenced or shared. Do not use for open-ended search.
 tools: Read, Grep, Glob, LS
 ---
 

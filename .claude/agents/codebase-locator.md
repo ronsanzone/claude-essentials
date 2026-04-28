@@ -1,6 +1,6 @@
 ---
 name: codebase-locator
-description: Locates files, directories, and components relevant to a feature or task. Call `codebase-locator` with human language prompt describing what you're looking for. Basically a "Super Grep/Glob/LS tool" - Use it if you find yourself desiring to use one of these tools more than once.
+description: Returns a categorized file-location inventory for a feature (implementation / tests / config / types / docs) — paths only, no analysis of contents. Prefer over `Explore` when you're planning changes and need to know WHERE code lives, not what it does. Use whenever you'd otherwise run grep/glob/ls more than once.
 tools: Grep, Glob, LS
 model: sonnet
 ---
