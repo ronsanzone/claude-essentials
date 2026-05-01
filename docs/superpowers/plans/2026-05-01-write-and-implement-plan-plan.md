@@ -73,7 +73,12 @@ No existing files are modified. The reviewer prompts are copied independent of `
 
 > Record any deviations from the plan here. Include: task ID, what changed, why, and impact on downstream tasks.
 
-_No deviations recorded._
+**Pre-Phase-1 (post-0.1):** Consulted `superpowers:writing-skills`. Two adjustments applied across all SKILL.md authoring tasks (1.2, 1.3, 2.2, 2.3):
+
+1. **Frontmatter `description` rewritten** to follow CSO guidance: start with "Use when...", describe triggering conditions only, **never** summarize the skill's workflow. The original drafts (especially `/implement-plan`'s "fresh subagent per task, two-stage review, final session review") fell into the documented anti-pattern where future Claude follows the description as a shortcut and skips the body. New descriptions below in Tasks 1.2 and 2.2.
+2. **Word-count target <500 words per SKILL.md** added as an explicit guidance note for the implementer subagents. This is per `writing-skills` token-efficiency guidance for non-getting-started skills. If the body genuinely needs more, that's acceptable, but compression should be the default.
+
+No structural changes to phases or tasks. Validation scripts unchanged.
 
 ---
 
@@ -263,7 +268,7 @@ git commit -m "test(plans): add phase-1 validation script for /write-plan SKILL.
 ````markdown
 ---
 name: write-plan
-description: "Use when you have a small, well-scoped change that doesn't need design discussion but should land as a durable plan artifact with dw-06-grade implementation discipline. Lighter than the deep-work pipeline; more durable than investigate-and-fix."
+description: "Use when you have a small, well-scoped change that needs an implementation plan but doesn't warrant the deep-work pipeline's research/design phases. Use instead of investigate-and-fix when you want a durable plan artifact rather than a transient EnterPlanMode plan."
 ---
 
 # /write-plan
@@ -615,7 +620,7 @@ git commit -m "test(plans): add phase-2 validation script for /implement-plan SK
 ````markdown
 ---
 name: implement-plan
-description: "Use when /write-plan has produced a plan and you want to execute it with dw-06-grade discipline (fresh subagent per task, two-stage review, final session review). Reads the plan from ~/notes/context-engineering/<repo>/<slug>/plan.md."
+description: "Use when you have a plan written by /write-plan, or any dw-05-format plan at ~/notes/context-engineering/<repo>/<slug>/plan.md, and want to execute it. Use this rather than executing-plans when subagents are available."
 ---
 
 # /implement-plan
