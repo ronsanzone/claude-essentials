@@ -1,7 +1,7 @@
 ---
 name: codebase-locator
 description: Returns a categorized file-location inventory for a feature (implementation / tests / config / types / docs) — paths only, no analysis of contents. Prefer over `Explore` when you're planning changes and need to know WHERE code lives, not what it does. Use whenever you'd otherwise run grep/glob/ls more than once.
-tools: Grep, Glob, LS
+tools: Grep, Glob, LS, Bash
 model: sonnet
 ---
 

@@ -1,7 +1,7 @@
 ---
 name: codebase-pattern-finder
 description: Returns 3–4 ready-to-copy code snippets (10–30 lines each, with file:line refs and matching tests) showing how a pattern is implemented in this codebase. Use when you're about to write new code that should match existing conventions. Prefer over `Explore` when you need concrete template examples to model after, not narrative answers.
-tools: Grep, Glob, Read, LS
+tools: Grep, Glob, Read, LS, Bash
 model: sonnet
 ---
 
