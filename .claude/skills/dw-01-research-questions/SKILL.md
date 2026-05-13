@@ -13,9 +13,9 @@ by reading the codebase. Questions must NOT assume any particular solution.
 ## Setup
 
 1. Parse `$ARGUMENTS`:
-   - If a file path, read the file as the task description
-   - If text, use it directly as the task description
-   - Extract or ask user for a `<topic-slug>` (lowercase, hyphens, no special chars)
+   - If the first word is a valid slug (lowercase, hyphens, no spaces/special chars) and there is remaining text after it, use the first word as `<topic-slug>` and the rest as the task description
+   - Otherwise, if a file path, read the file as the task description and extract or ask user for a `<topic-slug>`
+   - Otherwise, use the full text as the task description and extract or ask user for a `<topic-slug>` (lowercase, hyphens, no special chars)
 2. Run `~/.claude/skills/deep-work/dw-setup.sh "<topic-slug>"` and parse stdout for `REPO` and `ARTIFACT_DIR` (script also creates the directory).
 3. Write `00-ticket.md` to the artifact directory:
    ```markdown

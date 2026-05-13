@@ -16,7 +16,14 @@ if [ -z "$slug" ]; then
     exit 2
 fi
 
-repo=$(basename "$(git remote get-url origin 2>/dev/null | sed 's/.git$//')" 2>/dev/null || basename "$(pwd)")
+repo=$(basename "$(git remote get-url origin 2>/dev/null | sed 's/.git$//')" 2>/dev/null)
+if [ -z "$repo" ]; then
+    repo=$(basename "$(pwd)")
+fi
+if [ -z "$repo" ]; then
+    echo "MISSING_REPO" >&2
+    exit 3
+fi
 artifact_dir="$HOME/notes/context-engineering/$repo/$slug"
 
 mkdir -p "$artifact_dir"
