@@ -15,6 +15,7 @@ the prompt safely re-enters the pipeline here.
 
 1. Run `~/.claude/skills/deep-work/dw-setup.sh "$ARGUMENTS"` and parse stdout for `REPO`, `TOPIC_SLUG`, `ARTIFACT_DIR`.
    - If the script exits 2 (`MISSING_SLUG` on stderr), ask user via AskUserQuestion for the topic slug, then re-run with the slug.
+   - If `$ARGUMENTS` contains `--auto`, enable **auto mode** (accept all recommendations without interactive prompts).
 
 ## Pre-flight Validation
 
@@ -177,7 +178,9 @@ status: draft
 
 ### Step 7: Present and resolve questions
 
-Present a summary of the design document to the user, then ask via AskUserQuestion:
+**If auto mode:** Skip the interactive prompt. Resolve all OPEN questions using the stated recommendations (equivalent to "Accept recommendations"). Log: "Auto mode: accepting all recommendations."
+
+**Otherwise:** Present a summary of the design document to the user, then ask via AskUserQuestion:
 
 > "Design document written to `03-design-discussion.md` with N open questions
 > (M from research, K from targeted exploration).

@@ -10,7 +10,14 @@
 #
 # On missing slug (exit 2), prints "MISSING_SLUG" to stderr.
 
-slug="${1:-}"
+args="${*:-}"
+slug=""
+for arg in $args; do
+    case "$arg" in
+        --*) ;;  # skip flags
+        *) [ -z "$slug" ] && slug="$arg" ;;
+    esac
+done
 if [ -z "$slug" ]; then
     echo "MISSING_SLUG" >&2
     exit 2
