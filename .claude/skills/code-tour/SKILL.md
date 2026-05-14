@@ -50,44 +50,76 @@ Read the diff or topic description and identify:
 - Key files and packages touched or relevant
 - The subsystem name (used to scope all research agents)
 - The central abstraction or entry point
-- **Reader profile**: ramp-up tour (surface-level prior knowledge) vs. PR review tour (deep prior knowledge). Ramp-up tours need a Lifecycle/Workflow section (see Step 5); PR review tours can usually skip it.
+- **Reader profile** — pick one; it drives dimension selection (Step 4), section template (Step 5), and styling brief (Step 6):
+  - **Ramp-up tour** — engineer new to the subsystem, will edit code soon. Needs the Lifecycle/Workflow section, dense file:line citation, execution-order walkthrough.
+  - **PR review tour** — engineer who knows the subsystem, reviewing a specific change. Skip Lifecycle; focus on what the diff does. Dense file:line citation.
+  - **Showcase tour** — external stakeholder, eng leadership, or cross-team reader. Reads once, won't edit. Lower citation density, thematic (not execution-order) sections, outcomes-forward, project-name masthead. No build/install commands.
+
+If the user supplied **scope exclusions** ("leave out X", "don't cover Y", "skip GA-related work"), capture them verbatim — they get forwarded to every agent brief in Step 4.
 
 ### Step 4: Dispatch 5 Parallel Research Agents
 
-Launch all 5 agents in a single message using `codebase-analyzer` subagent type. Each agent gets:
+Launch 5 agents in a single message. Default subagent type is `codebase-analyzer`; some dimensions (noted below) need `general-purpose` because they span docs/git/notes outside the codebase. Each agent gets:
 - The diff or topic description for context
 - The key files/packages from Step 3
+- Any **scope exclusions** the user specified (Step 3) — pasted verbatim into the brief
 - This instruction: "Scope your research to this subsystem. Do not explain the broader application. Include file:line citations on every claim. Report findings concisely."
 
-| Agent | Research Dimension | Key Questions |
-|-------|--------------------|---------------|
-| **Framework** | Base class, interface, or framework the change extends | What contract does it implement? What are the abstractions and extension points? What must subclasses provide? |
-| **Upstream** | Who calls into the changed code | What events, actions, or callers trigger this code? What's the entry point? |
-| **Downstream** | Who consumes the output | Where does the data flow next? What decisions or behaviors does it affect? |
-| **Model/Persistence** | Data structures, DAOs, schemas | How is state stored and queried? What are the key fields and their semantics? |
-| **The Change** (PR/branch) or **System Overview** (topic) | The diff itself, or the feature's boundaries | What specifically changed and why? Or: what are the components and boundaries of this system? |
+**Pick 5 from the dimension menu below.** This is a menu, not a fixed list — match dimensions to what the tour needs. The first five are the runtime-flow defaults (good for ramp-up and PR review); the bottom four are showcase-friendly and worth promoting when the project has them.
 
-For ramp-up tours where the reader is new to the subsystem, also have at least one agent surface recent activity themed by feature area (`git log --since` grouped by ticket/theme) — this powers the "What's Actively Being Built" section.
+| Dimension | When to pick | Agent type | Key questions |
+|-----------|--------------|------------|---------------|
+| **Framework / Contract** | Always useful | codebase-analyzer | What contract does it implement? What are the abstractions and extension points? What must subclasses provide? |
+| **Upstream / Triggers** | Runtime-flow tours | codebase-analyzer | What events, actions, or callers trigger this code? What's the entry point? |
+| **Downstream / Consumers** | Runtime-flow tours | codebase-analyzer | Where does the data flow next? What decisions or behaviors does it affect? |
+| **Model / Persistence** | CRUD-shaped systems | codebase-analyzer | How is state stored and queried? What are the key fields and their semantics? |
+| **The Change / System Overview** | Always (PR/branch → Change; topic → Overview) | codebase-analyzer | What specifically changed and why? Or: what are the components and boundaries? |
+| **History / Road So Far** | **Showcase tours, multi-month projects** | **general-purpose** | Chronological narrative from git log + ticket docs + decision logs + skunkworks notes. Group commits by milestone, not by ticket. Highlight decisions and their motivation. |
+| **Performance / Outcomes** | **When perf docs or benchmarks exist** | codebase-analyzer | Before/after numbers, hypothesis-by-hypothesis ledger, what moved the needle, what didn't. Often the single highest-signal section in showcase tours. |
+| **External Integrations** | When the system talks to third-party APIs/SDKs | codebase-analyzer | Wire protocol, auth, lifecycle, credentials, error semantics. Fills the slot Model/Persistence usually fills for CRUD systems. |
+| **Recent Activity** | Ramp-up tours on active codebases | general-purpose | `git log --since` grouped by ticket/theme. Powers the "What's Actively Being Built" section. |
 
 ### Step 5: Compile Tour
 
-Wait for all 5 agents to complete, then compile findings using the section structure below. The narrative must build incrementally — each section should be understandable given only the sections before it.
+Wait for all 5 agents to complete, then compile findings. Pick a section template based on the reader profile from Step 3. Both templates build incrementally — each section should be understandable given only the sections before it.
 
-#### Required sections (always include)
+#### Template A — Trace template (ramp-up and PR-review tours)
 
-**1. What This System Does** — 1–2 paragraphs of plain English describing the specific subsystem, not the application. No jargon without explanation. Someone unfamiliar with this subsystem should understand its purpose after reading this. End with a short list of "things that make this different / worth tracing carefully" if the research surfaced any.
+For readers who need to understand code flow well enough to edit. Execution-order, dense citations.
 
-**2. The Big Picture** — Inline SVG diagram showing the full end-to-end flow from trigger to effect. This is the "map" that everything else refers back to. Label key decision points and data transformations.
+**1. What This System Does** — 1–2 paragraphs of plain English describing the specific subsystem, not the application. End with a short list of "things that make this different / worth tracing carefully" if the research surfaced any.
 
-**3. Lifecycle / Workflow** — *Required for ramp-up tours; optional for PR review tours.* A conceptual walkthrough of how the workflow unfolds across stages, with a stage-by-stage diagram. Make the **shared infrastructure vs. specialization split** explicit (e.g., "stages 1–4 are cloud-agnostic; 5–6 are where Alibaba code lives"). Then a short paragraph per stage saying what happens and which class owns it. End with a "why this matters when reading X code" note that anchors the abstraction back to where the reader will encounter it. This section gives the mental model that everything else hangs off — without it, jumping from a system diagram into base classes is too steep.
+**2. The Big Picture** — Inline SVG showing the full end-to-end flow from trigger to effect. The "map" everything else refers back to.
 
-**4. Step-by-Step Tour** — Numbered collapsible sections walking through the flow in execution order. Each step includes:
+**3. Lifecycle / Workflow** — *Required for ramp-up tours; optional for PR review tours.* Conceptual walkthrough across stages, with a stage-by-stage diagram. Make the **shared infrastructure vs. specialization split** explicit (e.g., "stages 1–4 are cloud-agnostic; 5–6 are where Alibaba code lives"). Short paragraph per stage saying what happens and which class owns it. End with a "why this matters when reading X code" anchor.
+
+**4. Step-by-Step Tour** — Numbered collapsible sections walking through the flow in execution order. Each step:
 - What happens and why (2–4 paragraphs max)
 - Syntax-highlighted code snippets (10–30 lines, with `file:line` references)
 - Additional SVG diagrams where they aid understanding
-- Connection back to the big picture diagram
+- Connection back to the big picture
 
-After each conceptual section, end with a brief "anchor" — one sentence mapping the abstraction to where the reader will encounter it in concrete code. Small but very high signal.
+After each conceptual section, end with a one-sentence anchor mapping the abstraction to where the reader will encounter it in concrete code.
+
+#### Template B — Showcase template (stakeholder, leadership, cross-team tours)
+
+For readers who won't edit the code. Thematic (not execution-order), outcomes-forward, lower citation density.
+
+**1. Mission / What We Built** — Plain-English framing of the problem and the shape of the solution. Customer-facing pipeline or UX example if relevant. No file:line.
+
+**2. The Big Picture** — Inline SVG, often a before/after comparison or a system-boundary diagram. Same role as Template A's §2.
+
+**3. Context** — Just enough background for an outside reader to follow the rest. Framework primer, sandbox constraints, key constraints. Keep it tight.
+
+**4. Road So Far** — Chronological narrative of how the project got here. Group by milestone (not by ticket). Each milestone: problem → decision → delivery → acceptance signal. Use collapsible chapters for each milestone if there are more than 4–5. *This is usually the centerpiece of a showcase tour.*
+
+**5. Current State / Architecture** — How the system works today. SVG diagrams for the runtime pipeline. Code snippets are optional — include only when they make a point a diagram can't. File:line citation is light, used for navigation, not for proof.
+
+**6. Outcomes** — Hard numbers from the Performance dimension, before/after tables, hypothesis ledger. Often the single most-quoted section after the tour ships.
+
+**7. Where This Leaves Us** — What's done (checklist), what's next (V1 scope or similar). Explicitly close out anything the user excluded ("GA work is out of scope for this document").
+
+In Template B, the "Step-by-Step Tour in execution order" is **downgraded to optional** — showcase readers want thematic sections, not a code walkthrough.
 
 #### Supplementary sections (choose based on research findings)
 
@@ -115,9 +147,11 @@ Derive the slug from:
 - Branch mode: branch name (e.g., `feature-lcm-update-api`)
 - Topic mode: slugified topic (e.g., `capacity-denylist-system`)
 
-**Invoke the `frontend-design` skill before writing the HTML, with this brief:**
+**Invoke the `frontend-design` skill before writing the HTML.** The brief is parameterized by reader profile from Step 3 — fill in the audience and density lines below.
 
 > Long-form technical reading document (~20–30 min, ~3000 words). Reader will consume sequentially in a focused session. Prose-heavy with mono-font code blocks and inline SVG diagrams.
+>
+> **Audience:** [engineer-internal — ramp-up / PR review] OR [stakeholder-external — leadership / cross-team]. Engineer-internal tours: denser, more code chrome, file:line marginalia welcome. Stakeholder-external tours: trust-signaling masthead, less code chrome, callout cards for outcomes, project-name treated as a brand element.
 >
 > **Aesthetic constraint:** prefer light editorial themes (warm parchment, off-white, soft cream) over dark or stark white. Prioritize readability for long sessions. Distinctive typography (variable serif display + clean sans body + characterful mono) — avoid generic Inter/Arial defaults.
 >
@@ -127,15 +161,24 @@ Derive the slug from:
 > - Reading-progress bar at the top
 > - Constrained prose column (~700–740px) with diagrams/tables allowed to break wider
 > - Hero with masthead-style meta-row (compiled date, branch, reading time, section count)
+> - For showcase tours: include a TL;DR / dek line in the hero — one italic serif sentence summarizing the outcome
 > - Pull quotes for the 1–2 stickiest insights
 > - Collapsible `<details>` styled as elegant chapter sections (no buttony chrome)
 > - SVG diagrams in cards with italic figcaptions
 > - Syntax-highlighted code blocks (manual `<span>`-class highlighting)
+> - Ticket/identifier pills (e.g. `SAN-15`, `DL-001`) styled as colored chips when the content has them
 >
 > Write the final HTML directly — informed by both the compiled content and frontend-design's guidance. One pass.
 
-After writing, display a brief summary in conversation with the file path, and open the file in the browser with `open <path>` so the user sees the result immediately.
+After writing, print the absolute file path in conversation and run `open <absolute-path>` so the user sees the result. **If `open` fails** (worktree cleanup, sandbox, headless host), just leave the path printed — the user can open it manually. Do not retry.
 
 ### Step 7: Iteration is Expected
 
-Tours typically need a second pass — the user may request content additions (e.g. a new high-level section), aesthetic adjustments, or a section reordering. Treat this as a normal part of the flow, not a failure mode. When renumbering sections, edit in **reverse order** (last → first) so each search string stays unique mid-edit.
+Tours typically need a second pass — the user may request content additions (e.g. a new high-level section), aesthetic adjustments, or a section reordering. Treat this as a normal part of the flow, not a failure mode.
+
+### Editing tips
+
+- **Renumbering sections:** edit in **reverse order** (last → first) so each search string stays unique mid-edit. Otherwise the first rename collides with later occurrences.
+- **Adding a section in the middle:** insert the new section first, then renumber everything after it in reverse order (per above).
+- **Swapping diagrams:** SVGs are large; use Edit, not Write, and target the `<svg>...</svg>` block as one unit.
+- **Reader-profile pivot mid-iteration:** if the user redirects from engineer to stakeholder framing (or vice versa) after the first pass, that usually means switching templates from Step 5 — don't try to patch one into the other section by section.
