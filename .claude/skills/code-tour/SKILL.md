@@ -5,7 +5,7 @@ description: Use when you need to deeply understand a PR, branch, or system/feat
 
 # Code Tour
 
-Deep end-to-end guided tour of a PR, branch, or system feature. Dispatches 5 parallel research agents to trace flows across the codebase, then compiles findings and writes a self-contained HTML document — using the `frontend-design` skill for styling — with SVG diagrams, syntax-highlighted code, and collapsible sections.
+Deep end-to-end guided tour of a PR, branch, or system feature. Dispatches 5 parallel research agents to trace flows across the codebase, then compiles findings and delegates HTML rendering to the `html-report` skill — producing a self-contained document with SVG diagrams, syntax-highlighted code, and collapsible sections.
 
 ## Usage
 
@@ -138,39 +138,27 @@ Other useful sections (include only when the research surfaces something interes
 
 These are not a checklist. Use judgment — if research surfaced something that doesn't fit these categories, add a section for it.
 
-### Step 6: Style and Write Output
+### Step 6: Render via `html-report`
 
-Write the compiled tour as a **self-contained HTML file** (all CSS/SVG inline, no external dependencies — fonts via Google Fonts CDN are fine) to `~/notes/04_Research/<topic-slug>-tour.html`.
+Invoke the `html-report` skill with:
+
+- **content** — the compiled outline from Step 5
+- **audience** — mapped from the Step 3 reader profile:
+  - "Ramp-up tour" → `engineer-internal-ramp-up`
+  - "PR review tour" → `engineer-internal-pr-review`
+  - "Showcase tour" → `stakeholder-external`
+- **design-language** — `editorial-parchment` (default; promote others as they ship per `design-languages/README.md`)
+- **hero** — title, lede (one italic-serif sentence for showcase tours; omit for engineer tours unless the diff has a clear thesis), eyebrow (project/subsystem name), meta pills (compiled date, branch or PR ref, reading time estimate, scope)
+- **output-path** — `~/notes/04_Research/<slug>-tour.html`
 
 Derive the slug from:
+
 - PR mode: ticket ID or PR title (e.g., `CLOUDP-398944-alibaba-capacity-denylist`)
 - Branch mode: branch name (e.g., `feature-lcm-update-api`)
 - Topic mode: slugified topic (e.g., `capacity-denylist-system`)
 
-**Invoke the `frontend-design` skill before writing the HTML.** The brief is parameterized by reader profile from Step 3 — fill in the audience and density lines below.
+`html-report` returns the absolute path to the rendered HTML. Print it and run `open <absolute-path>`. **If `open` fails** (worktree cleanup, sandbox, headless host), just leave the path printed — the user can open it manually. Do not retry.
 
-> Long-form technical reading document (~20–30 min, ~3000 words). Reader will consume sequentially in a focused session. Prose-heavy with mono-font code blocks and inline SVG diagrams.
->
-> **Audience:** [engineer-internal — ramp-up / PR review] OR [stakeholder-external — leadership / cross-team]. Engineer-internal tours: denser, more code chrome, file:line marginalia welcome. Stakeholder-external tours: trust-signaling masthead, less code chrome, callout cards for outcomes, project-name treated as a brand element.
->
-> **Aesthetic constraint:** prefer light editorial themes (warm parchment, off-white, soft cream) over dark or stark white. Prioritize readability for long sessions. Distinctive typography (variable serif display + clean sans body + characterful mono) — avoid generic Inter/Arial defaults.
->
-> **Required UX:**
-> - Sticky TOC sidebar with scroll-spy (active link tracks current section)
-> - Section numbers as marginalia in the gutter (not inline with the heading)
-> - Reading-progress bar at the top
-> - Constrained prose column (~700–740px) with diagrams/tables allowed to break wider
-> - Hero with masthead-style meta-row (compiled date, branch, reading time, section count)
-> - For showcase tours: include a TL;DR / dek line in the hero — one italic serif sentence summarizing the outcome
-> - Pull quotes for the 1–2 stickiest insights
-> - Collapsible `<details>` styled as elegant chapter sections (no buttony chrome)
-> - SVG diagrams in cards with italic figcaptions
-> - Syntax-highlighted code blocks (manual `<span>`-class highlighting)
-> - Ticket/identifier pills (e.g. `SAN-15`, `DL-001`) styled as colored chips when the content has them
->
-> Write the final HTML directly — informed by both the compiled content and frontend-design's guidance. One pass.
-
-After writing, print the absolute file path in conversation and run `open <absolute-path>` so the user sees the result. **If `open` fails** (worktree cleanup, sandbox, headless host), just leave the path printed — the user can open it manually. Do not retry.
 
 ### Step 7: Iteration is Expected
 
