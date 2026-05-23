@@ -89,15 +89,24 @@ These hex values are the brand. Do not approximate; extract and paste verbatim.
   --teal-deep:       #064038;  /* hover state for teal elements */
   --terracotta:      #a84e1a;  /* secondary: eyebrow dot, marginalia number, ticket pills */
   --terracotta-soft: #f3e3d2;  /* terracotta wash: external diagram fills */
+
+  /* Aliases for the diagram-kit generic SVG style block */
+  --accent:          var(--teal);
+  --accent-soft:     var(--teal-soft);
+  --secondary:       var(--terracotta);
+  --secondary-soft:  var(--terracotta-soft);
 }
 ```
 
+The four `--accent` / `--secondary` aliases let the canonical SVG `<style>` block from `references/diagram-kit.md` render without modification. If a future component or report wants direct access to teal/terracotta, the concrete tokens are still there.
+
 ### Permitted additional accents
 
-Introduce one or two of these only if the content calls for them:
+Introduce this pair only if the content calls for it:
 
-- `--warn: #9a6300` + `--warn-soft: #f8ecd5` — for deprecation, failure path, "known gaps" sections, warn diagram fills
-- `--success: #3a6634` + `--success-wash: #d8e3d3` — for outcomes that need positive signaling (rare in this language; field-report territory)
+- `--warn: #9a6300` + `--warn-soft: #f8ecd5` — for deprecation, failure path, "known gaps" sections, warn diagram fills.
+
+A success palette (`--success` + `--success-wash`) does not belong to this language — that's `field-report` territory. If positive-outcome signaling is heavy enough to need its own color, the report is in the wrong language.
 
 Do not add a third primary accent. The teal/terracotta duo is load-bearing for the language's identity.
 
@@ -182,15 +191,16 @@ Teal-soft background, 4px teal left border, rounded. Informational/highlight sig
 
 ---
 
-### Callout warn / success — in this language
+### Callout warn — in this language
 
-Same geometry as default callout; swap the color pair:
+Same geometry as default callout; swap to the warn color pair:
 
 - **warn:** `border-left-color: var(--warn)` + `background: var(--warn-soft)` — deprecation, failure path, known gaps.
-- **success:** `border-left-color: var(--success)` + `background: var(--success-wash)` — rare; field-report territory.
 
 **Locked:** color swap only; same 4px left-border, same border-radius.
-**Free to vary:** nothing — if success appears frequently, reconsider the language choice.
+**Free to vary:** nothing for warn.
+
+The success variant (`--success` + `--success-wash`) belongs to `field-report`. If a report needs heavy positive-outcome signaling, reconsider the language choice; don't add a success callout pattern to this language.
 
 ---
 

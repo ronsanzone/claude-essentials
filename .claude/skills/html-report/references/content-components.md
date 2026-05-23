@@ -144,7 +144,7 @@ This file defines the HTML structure of every component a report uses. The CSS c
 **CSS classes the language must style**
 - `.quote` — large serif, generous vertical margin, optional left border or indent
 
-
+**Notes.** The language picks the font, color, size, and whether to set the quote off with a left rule, top/bottom rules, or pure indent. Avoid using `<blockquote>` — `.quote` is for the single sentence; nested block quotation isn't the intent.
 
 ---
 
@@ -214,7 +214,7 @@ This file defines the HTML structure of every component a report uses. The CSS c
 
 ```html
 <pre><span class="kw">def</span> <span class="fn">snapshot</span>(host): <span class="com"># take it</span>
-  <span class="kw">return</span> <span class="num">42</span></pre>
+  <span class="kw">return</span> <span class="n">42</span></pre>
 ```
 
 Span class taxonomy:
@@ -224,15 +224,15 @@ Span class taxonomy:
 | `kw` | Keyword | `if`, `def`, `class`, `return` |
 | `str` | String literal | `"hello"`, `'world'` |
 | `com` | Comment | `# note`, `// note` |
-| `num` | Numeric literal | `42`, `3.14` |
+| `n` | Numeric literal | `42`, `3.14` |
 | `fn` | Function name | `snapshot`, `connect` |
 | `type` | Type name | `String`, `Optional` |
 
 **CSS classes the language must style**
 - `pre` — monospace font, background, padding, overflow-x scroll
-- `pre .kw`, `pre .str`, `pre .com`, `pre .num`, `pre .fn`, `pre .type` — token colors
+- `pre .kw`, `pre .str`, `pre .com`, `pre .n`, `pre .fn`, `pre .type` — token colors
 
-**Notes.** Span classification is done manually by the report author; no runtime highlighter is involved. Unclassified text inside `<pre>` is the default ink color.
+**Notes.** Span classification is done manually by the report author; no runtime highlighter is involved. Unclassified text inside `<pre>` is the default ink color. The numeric-literal token uses `.n` (not `.num`) so it does not collide with the `.num` marginalia counter from §2.
 
 ---
 

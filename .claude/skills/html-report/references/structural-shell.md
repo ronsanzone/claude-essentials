@@ -189,7 +189,7 @@ updateProgress(); updateActive();
 - Sticky-TOC HTML structure: `<aside class="toc"><ol><li><a href="#...">…</a></li>…</ol></aside>`.
 - Skip-link presence and visually-hidden-until-focus pattern.
 - Progress-bar wiring: `--scroll` CSS variable updated by JS; `width: var(--scroll, 0%)` in `.progress::after`.
-- Marginalia absolute-positioning pattern (`position: absolute; left: -64px`).
+- Marginalia absolute-positioning pattern (`position: absolute; left: -64px ±8px`). The pattern is locked; the exact offset may be tuned within ±8px per language.
 - Layout `max-width: 1280px; margin: 0 auto; padding: 0 48px` container geometry.
 - Breakpoint at `980px` for single-column collapse.
 

@@ -21,7 +21,14 @@ Languages map these to palette positions. The role table is the contract.
 
 ## SVG `<style>` Block Pattern
 
-Every diagram has an inline `<style>` block. Copy this template into each `<svg>`:
+Every diagram has an inline `<style>` block. The template below uses the **generic accent token names** `--accent`, `--accent-soft`, `--secondary`, `--secondary-soft`. A design language must either:
+
+1. **Alias** these in its `:root` block (e.g. editorial-parchment can add `--accent: var(--teal); --accent-soft: var(--teal-soft); --secondary: var(--terracotta); --secondary-soft: var(--terracotta-soft);`), so the template renders unchanged, OR
+2. **Rewrite** the role classes in this template with its concrete palette tokens (e.g. replace `var(--accent)` with `var(--teal)` directly).
+
+Either approach is acceptable; the diagram-kit doesn't care which the language picks, as long as the role-to-color contract is honored.
+
+Template:
 
 ```svg
 <svg viewBox="0 0 900 350" xmlns="http://www.w3.org/2000/svg">
