@@ -94,11 +94,11 @@ Expected output includes `SKILL.md`, `references/` (empty), `design-languages/` 
 ```bash
 cd ~/code/claude-essentials
 # These files live in ~/.claude which IS this repo
-git add skills/html-report/SKILL.md
+git add .claude/skills/html-report/SKILL.md
 git commit -m "feat(html-report): scaffold skill directory and stub SKILL.md"
 ```
 
-Note: `~/.claude` is the `claude-essentials` repo (confirmed in project memory). The relative path inside the repo is `skills/html-report/`.
+Note: `~/.claude/skills/` is a symlink into `~/code/claude-essentials/.claude/skills/`. Writing to `~/.claude/skills/html-report/` lands inside the repo at `.claude/skills/html-report/`, so git commands must be run from `~/code/claude-essentials` and reference paths as `.claude/skills/...`.
 
 ---
 
@@ -178,7 +178,7 @@ Expected: roughly 140–180 lines. If <100, content is thin. If >250, prune.
 
 ```bash
 cd ~/code/claude-essentials
-git add skills/html-report/references/structural-shell.md
+git add .claude/skills/html-report/references/structural-shell.md
 git commit -m "feat(html-report): canonical structural shell (TOC, scroll-spy, progress bar, marginalia)"
 ```
 
@@ -249,7 +249,7 @@ Expected: roughly 180–230 lines.
 
 ```bash
 cd ~/code/claude-essentials
-git add skills/html-report/references/content-components.md
+git add .claude/skills/html-report/references/content-components.md
 git commit -m "feat(html-report): generic content component HTML structure"
 ```
 
@@ -337,7 +337,7 @@ Expected: roughly 150–200 lines.
 
 ```bash
 cd ~/code/claude-essentials
-git add skills/html-report/references/diagram-kit.md
+git add .claude/skills/html-report/references/diagram-kit.md
 git commit -m "feat(html-report): diagram kit with role taxonomy and SVG patterns"
 ```
 
@@ -572,7 +572,7 @@ Expected: roughly 230–280 lines.
 
 ```bash
 cd ~/code/claude-essentials
-git add skills/html-report/design-languages/editorial-parchment.md
+git add .claude/skills/html-report/design-languages/editorial-parchment.md
 git commit -m "feat(html-report): first design language — editorial-parchment"
 ```
 
@@ -625,7 +625,7 @@ If the caller did not specify a language, pick based on audience:
 
 ```bash
 cd ~/code/claude-essentials
-git add skills/html-report/design-languages/README.md
+git add .claude/skills/html-report/design-languages/README.md
 git commit -m "feat(html-report): design language index and selection heuristic"
 ```
 
@@ -739,7 +739,7 @@ Expected: 0.
 
 ```bash
 cd ~/code/claude-essentials
-git add skills/html-report/SKILL.md
+git add .claude/skills/html-report/SKILL.md
 git commit -m "feat(html-report): finalize SKILL.md process"
 ```
 
@@ -816,7 +816,7 @@ Expected: 7 step headers (Steps 1–7). The Step 6 rename is fine ("Render via `
 
 ```bash
 cd ~/code/claude-essentials
-git add skills/code-tour/SKILL.md
+git add .claude/skills/code-tour/SKILL.md
 git commit -m "refactor(code-tour): delegate HTML rendering to html-report skill"
 ```
 
@@ -899,7 +899,7 @@ Iterate: edit the relevant reference file, re-run the smoke test, re-inspect.
 
 ```bash
 cd ~/code/claude-essentials
-git add skills/html-report/
+git add .claude/skills/html-report/
 git commit -m "fix(html-report): <specific issue> from smoke test"
 ```
 
