@@ -45,6 +45,31 @@ All artifacts are stored in `~/notes/context-engineering/<repo>/<topic-slug>/` w
 
 ---
 
+### RPI: Research → Plan → Implement
+
+A lighter-weight alternative to the full deep-work pipeline for running a task end-to-end through three focused skills. RPI keeps the same artifact-driven discipline, but compresses the workflow into research, planning, and implementation.
+
+**Core principle:** Research documents what **is**. Plan decides what **should change**. Implement performs the **change** and verifies it.
+
+```mermaid
+flowchart TD
+    A["Research\n/rpi-research <slug> <question>\n→ research.md"]
+    B["Plan\n/rpi-plan <slug>\n→ plan.md"]
+    C["Implement\n/rpi-implement <slug>\n→ branch changes + audit"]
+
+    A --> B --> C
+```
+
+| Skill | Command | Purpose | Key Output |
+|-------|---------|---------|------------|
+| **rpi-research** | `/rpi-research <slug> <question>` | Read-only, code-grounded research. Produces objective facts about the current system without proposing changes. | `research.md` |
+| **rpi-plan** | `/rpi-plan <slug>` | Interactive gated planning: understanding, design choice, phase outline, and draft review. | `plan.md` |
+| **rpi-implement** | `/rpi-implement <slug>` | Executes the plan with fresh subagents, spec/code-quality review, and final branch audit. | Branch changes + audit summary |
+
+RPI artifacts are stored in `~/notes/context-engineering/<repo>/<topic-slug>/`.
+
+---
+
 ### Code Review & PR Skills
 
 | Skill | Command | Purpose |
@@ -152,6 +177,9 @@ claude-essentials/
 │   │   ├── dw-05-plan/                  # Phase 5
 │   │   ├── dw-05b-plan-review/          # Phase 5b (optional adversarial review)
 │   │   ├── dw-06-implement/             # Phase 6 (subagent-driven)
+│   │   ├── rpi-research/                # Lightweight RPI research
+│   │   ├── rpi-plan/                    # Lightweight RPI planning
+│   │   ├── rpi-implement/               # Lightweight RPI implementation
 │   │   ├── refine-ticket/               # Pre-pipeline ticket refinement
 │   │   ├── investigate-and-fix/         # Single-session bug fix workflow
 │   │   ├── pr-description/
