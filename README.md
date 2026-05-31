@@ -1,72 +1,14 @@
 # Claude Essentials
 
-A collection of Claude Code customizations including global instructions, agents, skills, and utility scripts for enhanced AI-assisted development.
+A collection of Claude Code customizations including global instructions, skills, and utility scripts for enhanced AI-assisted development.
 
 ## Skills Overview
 
-### Deep-Work Pipeline
+### Deep-Work Pipeline Orchestrator
 
-A 6-phase context engineering workflow that separates research from solutioning. Each phase runs in a fresh conversation to maintain context isolation, producing structured artifacts that flow into the next phase.
+Runs the full deep-work pipeline (Phases 1-6) in a single session using agent teams with configurable review gates between each phase.
 
-```mermaid
-flowchart TD
-    A["Phase 1: Research Questions\n/dw-01-research-questions\n→ 01-research-questions.md"]
-    B["Phase 2: Research\n/dw-02-research\n→ 02-research.md"]
-    C["Phase 3: Design Discussion\n/dw-03-design-discussion\n→ 03-design-discussion.md"]
-    D["Phase 4: Structure Outline\n/dw-04-outline\n→ 04-structure-outline.md"]
-    E["Phase 5: Plan\n/dw-05-plan\n→ 05-plan.md"]
-    E5b["Phase 5b: Plan Review (optional)\n/dw-05b-plan-review\n→ 05b-plan-review.md"]
-    F1["Phase 6: Implement\n/dw-06-implement\nPer-task subagents + 2-stage review"]
-    FW{{"🔥 Bias Firewall 🔥\nUser copies ONLY questions\nto fresh conversation"}}
-    PR(("Original prompt\nre-introduced"))
-
-    A --> FW --> B
-    B --> PR --> C
-    C --> D --> E
-    E --> E5b
-    E5b --> F1
-```
-
-Use `/deep-work <slug>` to check pipeline progress or start a new task.
-
-#### Phase Details
-
-| Phase | Skill | Purpose | Key Output |
-|-------|-------|---------|------------|
-| 1 | `dw-01-research-questions` | Decompose task into 5-15 objective research questions (no solutioning) | `01-research-questions.md` |
-| 2 | `dw-02-research` | Answer questions by investigating the codebase objectively — cannot read the original prompt | `02-research.md` |
-| 3 | `dw-03-design-discussion` | Combine research with original prompt; explore design options, evaluate tradeoffs, make decisions | `03-design-discussion.md` |
-| 4 | `dw-04-outline` | Map design decisions to concrete file changes organized into implementable phases | `04-structure-outline.md` |
-| 5 | `dw-05-plan` | Expand outline into fully detailed plan — every task has enough detail that the implementing agent makes no design decisions | `05-plan.md` |
-| 5b | `dw-05b-plan-review` | Adversarial review of the plan for requirements gaps, logic bugs, security, performance, and code quality (optional) | `05b-plan-review.md` |
-| 6 | `dw-06-implement` | Fresh subagent per task with two-stage review (spec compliance → code quality) + session code review | `06-completion.md` |
-
-All artifacts are stored in `~/notes/context-engineering/<repo>/<topic-slug>/` with a `.state.json` file tracking phase completion.
-
----
-
-### RPI: Research → Plan → Implement
-
-A lighter-weight alternative to the full deep-work pipeline for running a task end-to-end through three focused skills. RPI keeps the same artifact-driven discipline, but compresses the workflow into research, planning, and implementation.
-
-**Core principle:** Research documents what **is**. Plan decides what **should change**. Implement performs the **change** and verifies it.
-
-```mermaid
-flowchart TD
-    A["Research\n/rpi-research <slug> <question>\n→ research.md"]
-    B["Plan\n/rpi-plan <slug>\n→ plan.md"]
-    C["Implement\n/rpi-implement <slug>\n→ branch changes + audit"]
-
-    A --> B --> C
-```
-
-| Skill | Command | Purpose | Key Output |
-|-------|---------|---------|------------|
-| **rpi-research** | `/rpi-research <slug> <question>` | Read-only, code-grounded research. Produces objective facts about the current system without proposing changes. | `research.md` |
-| **rpi-plan** | `/rpi-plan <slug>` | Interactive gated planning: understanding, design choice, phase outline, and draft review. | `plan.md` |
-| **rpi-implement** | `/rpi-implement <slug>` | Executes the plan with fresh subagents, spec/code-quality review, and final branch audit. | Branch changes + audit summary |
-
-RPI artifacts are stored in `~/notes/context-engineering/<repo>/<topic-slug>/`.
+> **Note:** The individual deep-work phase skills (`dw-01` through `dw-06`) and the RPI skills (`rpi-research`, `rpi-plan`, `rpi-implement`) have moved to the [context-engineering-workflows](https://github.com/ronsanzone/context-engineering-workflows) repo. This repo retains only the single-session orchestrator (`/deep-work-pipeline`) that coordinates the phases.
 
 ---
 
@@ -74,20 +16,9 @@ RPI artifacts are stored in `~/notes/context-engineering/<repo>/<topic-slug>/`.
 
 | Skill | Command | Purpose |
 |-------|---------|---------|
-| **pr-review** | `/pr-review <github-url>` | Multi-agent ensemble review — 6 parallel agents (docs compliance, bugs, security, history, correctness, quality) produce a report for human review before posting |
-| **quick-review** | `/quick-review <owner/repo> <pr>` | Single-pass expert review with severity-ranked findings (critical → minor) |
-| **pr-description** | `/pr-description [context-files...]` | Generate reviewer-focused PR descriptions from git changes; finds and fills PR templates |
+| **quick-review** | `/quick-review` | Single-pass expert review with severity-ranked findings (critical → minor) |
+| **local-code-review** | `/local-code-review` | Local code review of changes in the working tree |
 | **submit-pr** | `/submit-pr` | Full PR submission workflow — creates draft PRs or pushes updates to existing ones |
-| **session-retrospective** | `/session-retrospective` | Analyze session process efficiency — scores context engineering, tool usage, sub-agent work, and cost efficiency (1-5) |
-
----
-
-### Terminal & Debugging
-
-| Skill | Command | Purpose |
-|-------|---------|---------|
-| **tmux-stalker** | `/tmux-stalker` | Read content from any tmux pane — useful for checking long-running processes, reviewing logs, debugging across sessions |
-| **tmux-stalker-summarized** | `/tmux-stalker-summarized` | Context-efficient summaries of tmux pane content (test output, stack traces, logs) |
 
 ---
 
@@ -95,36 +26,20 @@ RPI artifacts are stored in `~/notes/context-engineering/<repo>/<topic-slug>/`.
 
 | Skill | Command | Purpose |
 |-------|---------|---------|
-| **refine-ticket** | `/refine-ticket` | Interactively refine a Jira ticket, pasted text, or file into a structured `ticket.md` ready for the deep-work pipeline |
+| **refine-ticket** | `/refine-ticket` | Interactively refine a Jira ticket, pasted text, or file into a structured `ticket.md` |
 | **investigate-and-fix** | `/investigate-and-fix <ticket>` | Single-session alternative to the full pipeline — investigate, research, propose, plan, and implement for well-scoped bug fixes or small features |
+| **session-retrospective** | `/session-retrospective` | Analyze session process efficiency — scores context engineering, tool usage, sub-agent work, and cost efficiency (1-5) |
 
 ---
 
-### Design & Architecture
+### Reporting & Presentation
 
 | Skill | Command | Purpose |
 |-------|---------|---------|
-| **software-design-philosophy** | `/software-design-philosophy` | Evaluate code or designs against 15 principles and 14 red flags from "A Philosophy of Software Design" |
+| **code-tour** | `/code-tour` | Generate an interactive HTML tour of a codebase or feature area |
+| **html-report** | `/html-report` | Render compiled content as a self-contained HTML technical report with TOC, scroll-spy, and collapsible sections |
 
 ---
-
-### Utility Skills
-
-| Skill | Command | Purpose |
-|-------|---------|---------|
-| **generate-postman-collection** | `/generate-postman-collection` | Generate Postman v2.1 collection JSON from OpenAPI specs or Java source code |
-
----
-
-## Agents
-
-| Agent | Purpose |
-|-------|---------|
-| **codebase-analyzer** | Analyze implementation details with file:line references |
-| **codebase-locator** | Find files and components by feature or topic |
-| **codebase-pattern-finder** | Find similar implementations, usage examples, and existing patterns |
-| **splunk-analyzer** | Analyze Splunk JSON logs for patterns, errors, and request flows |
-| **web-search-researcher** | Deep web research combining search with internal documentation |
 
 ## Quick Start
 
@@ -169,39 +84,25 @@ claude-essentials/
 │   ├── docs/
 │   │   └── software-design-philosophy.md
 │   ├── skills/
-│   │   ├── deep-work/                   # Pipeline guide & progress checker
-│   │   ├── dw-01-research-questions/    # Phase 1
-│   │   ├── dw-02-research/              # Phase 2
-│   │   ├── dw-03-design-discussion/     # Phase 3
-│   │   ├── dw-04-outline/               # Phase 4
-│   │   ├── dw-05-plan/                  # Phase 5
-│   │   ├── dw-05b-plan-review/          # Phase 5b (optional adversarial review)
-│   │   ├── dw-06-implement/             # Phase 6 (subagent-driven)
-│   │   ├── rpi-research/                # Lightweight RPI research
-│   │   ├── rpi-plan/                    # Lightweight RPI planning
-│   │   ├── rpi-implement/               # Lightweight RPI implementation
-│   │   ├── refine-ticket/               # Pre-pipeline ticket refinement
+│   │   ├── code-tour/                   # Interactive HTML codebase tours
+│   │   ├── deep-work-pipeline/          # Single-session pipeline orchestrator
+│   │   ├── html-report/                 # Self-contained HTML reports
 │   │   ├── investigate-and-fix/         # Single-session bug fix workflow
-│   │   ├── pr-description/
-│   │   ├── pr-review/
-│   │   ├── quick-review/
-│   │   ├── submit-pr/                   # PR creation/update workflow
-│   │   ├── session-retrospective/
-│   │   ├── software-design-philosophy/
-│   │   ├── generate-postman-collection/
-│   │   ├── tmux-stalker/
-│   │   └── tmux-stalker-summarized/
+│   │   ├── local-code-review/           # Local working tree review
+│   │   ├── quick-review/                # Fast severity-ranked review
+│   │   ├── refine-ticket/               # Pre-pipeline ticket refinement
+│   │   ├── session-retrospective/       # Session efficiency analysis
+│   │   └── submit-pr/                   # PR creation/update workflow
 │   └── agents/
-│       ├── codebase-analyzer.md
-│       ├── codebase-locator.md
-│       ├── codebase-pattern-finder.md
-│       ├── splunk-analyzer.md
-│       └── web-search-researcher.md
 └── scripts/
     ├── log_analysis_lib.py
     ├── example_commands.md
     └── test_log_analysis.py
 ```
+
+## Related Repositories
+
+- **[context-engineering-workflows](https://github.com/ronsanzone/context-engineering-workflows)** — Individual deep-work phase skills (dw-01 through dw-06) and RPI workflow skills (rpi-research, rpi-plan, rpi-implement)
 
 ## Customization
 
@@ -229,7 +130,6 @@ model: sonnet
 
 - Claude Code CLI
 - Python 3.8+ (for log analysis scripts)
-- tmux (for tmux-stalker skills)
 - gh CLI (for PR review skills)
 
 ## License
